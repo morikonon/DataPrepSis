@@ -1,0 +1,576 @@
+00:36:16 | INFO    | main             | Step 1/7: collecting data from the API
+00:36:19 | INFO    | api_client       | Season 2023: 440 results in 5 pages
+00:36:21 | INFO    | api_client       | Season 2024: 479 results in 5 pages
+00:36:23 | INFO    | api_client       | Season 2025: 479 results in 5 pages
+00:36:23 | INFO    | api_client       | Collected 1398 records (31 columns) from 15 API pages -> raw_data.csv
+00:36:23 | INFO    | main             | Step 2/7: publishing to Kafka
+00:36:23 | INFO    | kafka_admin      | Connected to Kafka at localhost:9092 (1 broker(s))
+00:36:23 | INFO    | kafka_admin      | Created topic 'f1-race-results' (3 partitions, replication factor 1)
+00:36:23 | INFO    | producer         | Loaded 1398 raw records from raw_data.csv
+00:36:24 | WARNING | producer         | GETPID [rdkafka#producer-3] [thrd:main]: Failed to acquire idempotence PID from broker localhost:9092/1: Broker: Coordinator load in progress: retrying
+00:36:24 | INFO    | producer         | Published 1398/1398 messages to 'f1-race-results' (failed: 0), per partition: {0: 484, 1: 456, 2: 458}
+00:36:24 | INFO    | main             | Step 3/7: consuming from Kafka
+00:36:24 | INFO    | kafka_admin      | Connected to Kafka at localhost:9092 (1 broker(s))
+00:36:28 | INFO    | consumer         | Consumed 1398 messages from 'f1-race-results' (malformed: 0, broker errors: 0); stopped because: expected message count reached
+00:36:28 | INFO    | consumer         | Saved consumed records -> consumed_data.csv
+00:36:28 | INFO    | main             | Step 4/7: validating with Pandera
+00:36:28 | INFO    | validator        | Validated 1403 records (1398 real + 5 test): 1398 valid, 5 invalid (0 real, 5 test), 16 failed checks
+00:36:28 | INFO    | validator        |   INVALID 2023_01_test_wrong_types         race_date: coerce_dtype('datetime64[ns]'); grid: coerce_dtype('int64'); points: coerce_dtype('float64')
+00:36:28 | INFO    | validator        |   INVALID 2023_01_test_missing_required    driver_code: not_nullable; constructor_name: not_nullable; status: not_nullable
+00:36:28 | INFO    | validator        |   INVALID 2023_01_test_bad_category_and_date (row): race_date_in_season; driver_code: str_matches('^[A-Z]{3}$'); race_date: in_range(1950-05-13 00:00:00, 2026-11-21 00:00:00); season: isin([2023, 2024, 2025])
+00:36:28 | INFO    | validator        |   INVALID 2023_01_test_out_of_range        (row): position_text_matches_position; (row): points_only_for_top_10; grid: in_range(0, 26); position: in_range(1, 26); laps: in_range(0, 100)
+00:36:28 | INFO    | validator        |   INVALID 2023_01_test_conflicting_position (row): one_driver_per_position
+00:36:28 | INFO    | main             | Step 5/7: cleaning and transforming
+00:36:28 | INFO    | cleaner          | Missing values in validated data:
+                    missing  percent
+race_time_ms            154    11.02
+fastest_lap_rank         52     3.72
+fastest_lap_number       52     3.72
+fastest_lap_time         52     3.72
+00:36:28 | INFO    | cleaner          | Duplicates: 0 exact, 0 repeated record_id -> removed
+00:36:28 | INFO    | cleaner          | Cleaned 1398 -> 1398 records, 42 columns -> clean_data.csv
+00:36:28 | INFO    | cleaner          | Podium finishes from grid 8 or lower (multi-condition filter): 15
+00:36:28 | INFO    | cleaner          | Team points by season (pivot_table):
+season         2023   2024   2025
+team_name                        
+McLaren       266.0  609.0  775.0
+Mercedes      374.0  433.0  424.0
+Red Bull      790.0  537.0  410.0
+Ferrari       363.0  595.0  360.0
+Williams       26.0   17.0  124.0
+RB             22.0   40.0   88.0
+Aston Martin  266.0   94.0   80.0
+Haas            9.0   51.0   73.0
+Sauber         16.0    4.0   70.0
+Alpine        110.0   63.0   20.0
+00:36:28 | INFO    | main             | Step 6/7: loading into SQLite (twice, to prove idempotency)
+00:36:28 | INFO    | loader           | Load #1: results inserted=1398 updated=0 unchanged=0, rows in table=1398, fingerprint=87e8650a0d04c539
+00:36:28 | INFO    | loader           | Load #2: results inserted=0 updated=0 unchanged=1398, rows in table=1398, fingerprint=87e8650a0d04c539
+00:36:28 | INFO    | loader           | SQL check 'rows_per_table':
+  table_name  row_count
+       races         70
+     drivers         28
+constructors         12
+     results       1398
+00:36:28 | INFO    | loader           | SQL check 'duplicate_results':
+  (no rows)
+00:36:28 | INFO    | loader           | SQL check 'orphan_results':
+  (no rows)
+00:36:28 | INFO    | loader           | SQL check 'races_without_single_winner':
+  (no rows)
+00:36:28 | INFO    | loader           | SQL check 'results_per_season':
+ season  races  results  total_points
+   2023     22      440        2242.0
+   2024     24      479        2443.0
+   2025     24      479        2424.0
+00:36:28 | INFO    | loader           | SQL check 'top_drivers_per_season':
+ season     driver_name team_name  points
+   2023  Max Verstappen  Red Bull   530.0
+   2023    Sergio Pérez  Red Bull   260.0
+   2023  Lewis Hamilton  Mercedes   217.0
+   2024  Max Verstappen  Red Bull   399.0
+   2024    Lando Norris   McLaren   344.0
+   2024 Charles Leclerc   Ferrari   327.0
+   2025    Lando Norris   McLaren   394.0
+   2025  Max Verstappen  Red Bull   389.0
+   2025   Oscar Piastri   McLaren   381.0
+00:36:28 | INFO    | loader           | Processed records: 1398, stored in SQLite: 1398, idempotent: True
+00:36:28 | INFO    | main             | Step 7/7: exploratory data analysis
+00:36:28 | INFO    | analysis         | Dataset: 1398 rows x 26 columns
+00:36:28 | INFO    | analysis         | Data types:
+object            10
+int64              7
+float64            7
+datetime64[ns]     1
+bool               1
+00:36:28 | INFO    | analysis         | Numerical statistics:
+                   count    mean     std    min    25%    50%    75%      max   skew
+grid              1398.0   10.43    5.77   0.00   5.00  10.00  15.00    20.00   0.00
+position          1398.0   10.49    5.76   1.00   5.25  10.00  15.00    20.00   0.00
+points            1398.0    5.09    7.22   0.00   0.00   1.00   9.75    26.00   1.39
+laps              1398.0   55.34   16.36   0.00  51.00  57.00  69.00    78.00  -1.80
+positions_gained  1246.0    0.77    4.08 -19.00  -1.00   1.00   3.00    16.00  -0.05
+race_time_min     1244.0   94.37   14.22  73.41  85.70  91.90  98.65   152.75   1.95
+gap_to_winner_s   1244.0  140.06  376.09   0.00  19.81  50.28  84.18  3530.36   7.30
+fastest_lap_s     1346.0   87.81   10.54  67.01  79.58  87.61  95.98   136.12   0.28
+lap_pace_gap_pct  1346.0    2.13    2.52   0.00   1.04   1.86   2.84    52.37  11.27
+driver_age        1398.0   28.09    5.99  18.00  24.00  27.00  31.00    44.00   0.86
+00:36:28 | INFO    | analysis         | Categorical statistics:
+                 unique    most_frequent  frequency
+season                3             2024        479
+team_name            10           Alpine        140
+driver_name          28  Alexander Albon         70
+country              21    United States        180
+status_group          5         Finished        921
+result_category       5        No points        518
+00:36:28 | INFO    | analysis         | Result status shares:
+status_group
+Finished    65.9
+Lapped      21.2
+DNF         11.4
+DNS          0.8
+DSQ          0.7
+00:36:28 | INFO    | analysis         | Spearman correlation grid vs finish (classified finishers): 0.740
+00:36:28 | INFO    | analysis         | Wins from pole: 58.6%, from the front row: 78.6%, from outside the top 5: 5.7%
+00:36:28 | INFO    | analysis         | Win / podium rate by grid slot (%):
+                 win  podium
+grid_effective              
+1               58.6    82.9
+2               20.0    75.7
+3               10.0    47.1
+4                4.3    35.7
+5                1.4    21.4
+6                2.9    10.0
+7                0.0     5.7
+8                0.0     0.0
+9                1.4     2.9
+10               0.0     2.9
+00:36:28 | INFO    | analysis         | Team totals 2023-2025:
+              points  dnf_rate  median_lap_gap
+team_name                                     
+Red Bull      1737.0     0.079           0.996
+McLaren       1650.0     0.050           0.853
+Ferrari       1318.0     0.093           1.415
+Mercedes      1231.0     0.093           1.304
+Aston Martin   440.0     0.115           1.942
+Alpine         193.0     0.136           2.373
+Williams       167.0     0.216           2.178
+RB             150.0     0.129           2.352
+Haas           133.0     0.107           2.327
+Sauber          90.0     0.121           2.706
+00:36:28 | INFO    | analysis         | Spearman team median lap gap vs team points (per season): -0.867
+00:36:28 | INFO    | analysis         | Title margin in race points: {2023: 270.0, 2024: 55.0, 2025: 5.0}
+00:36:28 | INFO    | analysis         | Most positions gained on average (>= 20 classified finishes):
+                races  avg_gained
+driver_name                      
+Oliver Bearman     24        3.33
+Sergio Pérez       40        3.00
+Guanyu Zhou        41        2.12
+Lewis Hamilton     64        1.91
+Esteban Ocon       60        1.88
+00:36:29 | INFO    | analysis         | Saved figure fig1_team_points_by_season.png
+00:36:29 | INFO    | analysis         | Saved figure fig2_grid_vs_finish.png
+00:36:29 | INFO    | analysis         | Saved figure fig3_win_podium_rate_by_grid.png
+00:36:29 | INFO    | analysis         | Saved figure fig4_dnf_rate_by_team.png
+00:36:29 | INFO    | analysis         | Saved figure fig5_championship_progress.png
+00:36:30 | INFO    | analysis         | Saved figure fig6_lap_pace_heatmap.png
+00:36:30 | INFO    | main             | PIPELINE SUMMARY (13.1s)
+  Collected from API        1398
+  Published to Kafka        1398
+  Consumed from Kafka       1398
+  Validation input          1403
+  Valid records             1398
+  Invalid records              5
+  Records after cleaning    1398
+  Stored in SQLite          1398
+  - Validation input = 1398 consumed + 5 deliberately invalid test records.
+  - Invalid = 0 real + 5 test records (quarantined in data/invalid_records.csv, never cleaned or stored).
+  - Cleaning removed 0 duplicate record(s) (0 repeated record_id).
+  - Every cleaned record is stored exactly once in SQLite (results table).
+  Idempotent load: True
+00:36:37 | INFO    | main             | Step 1/7 skipped: reusing 1398 collected records from raw_data.csv
+00:36:37 | INFO    | main             | Step 2/7: publishing to Kafka
+00:36:37 | INFO    | kafka_admin      | Connected to Kafka at localhost:9092 (1 broker(s))
+00:36:37 | INFO    | kafka_admin      | Topic 'f1-race-results' already exists
+00:36:37 | INFO    | producer         | Loaded 1398 raw records from raw_data.csv
+00:36:37 | INFO    | producer         | Published 1398/1398 messages to 'f1-race-results' (failed: 0), per partition: {0: 484, 1: 456, 2: 458}
+00:36:37 | INFO    | main             | Step 3/7: consuming from Kafka
+00:36:37 | INFO    | kafka_admin      | Connected to Kafka at localhost:9092 (1 broker(s))
+00:36:37 | INFO    | consumer         | Consumed 1398 messages from 'f1-race-results' (malformed: 0, broker errors: 0); stopped because: expected message count reached
+00:36:37 | INFO    | consumer         | Saved consumed records -> consumed_data.csv
+00:36:37 | INFO    | main             | Step 4/7: validating with Pandera
+00:36:38 | INFO    | validator        | Validated 1403 records (1398 real + 5 test): 1398 valid, 5 invalid (0 real, 5 test), 16 failed checks
+00:36:38 | INFO    | validator        |   INVALID 2023_01_test_wrong_types         race_date: coerce_dtype('datetime64[ns]'); grid: coerce_dtype('int64'); points: coerce_dtype('float64')
+00:36:38 | INFO    | validator        |   INVALID 2023_01_test_missing_required    driver_code: not_nullable; constructor_name: not_nullable; status: not_nullable
+00:36:38 | INFO    | validator        |   INVALID 2023_01_test_bad_category_and_date (row): race_date_in_season; driver_code: str_matches('^[A-Z]{3}$'); race_date: in_range(1950-05-13 00:00:00, 2026-11-21 00:00:00); season: isin([2023, 2024, 2025])
+00:36:38 | INFO    | validator        |   INVALID 2023_01_test_out_of_range        (row): position_text_matches_position; (row): points_only_for_top_10; grid: in_range(0, 26); position: in_range(1, 26); laps: in_range(0, 100)
+00:36:38 | INFO    | validator        |   INVALID 2023_01_test_conflicting_position (row): one_driver_per_position
+00:36:38 | INFO    | main             | Step 5/7: cleaning and transforming
+00:36:38 | INFO    | cleaner          | Missing values in validated data:
+                    missing  percent
+race_time_ms            154    11.02
+fastest_lap_rank         52     3.72
+fastest_lap_number       52     3.72
+fastest_lap_time         52     3.72
+00:36:38 | INFO    | cleaner          | Duplicates: 0 exact, 0 repeated record_id -> removed
+00:36:38 | INFO    | cleaner          | Cleaned 1398 -> 1398 records, 42 columns -> clean_data.csv
+00:36:38 | INFO    | cleaner          | Podium finishes from grid 8 or lower (multi-condition filter): 15
+00:36:38 | INFO    | cleaner          | Team points by season (pivot_table):
+season         2023   2024   2025
+team_name                        
+McLaren       266.0  609.0  775.0
+Mercedes      374.0  433.0  424.0
+Red Bull      790.0  537.0  410.0
+Ferrari       363.0  595.0  360.0
+Williams       26.0   17.0  124.0
+RB             22.0   40.0   88.0
+Aston Martin  266.0   94.0   80.0
+Haas            9.0   51.0   73.0
+Sauber         16.0    4.0   70.0
+Alpine        110.0   63.0   20.0
+00:36:38 | INFO    | main             | Step 6/7: loading into SQLite (twice, to prove idempotency)
+00:36:38 | INFO    | loader           | Load #1: results inserted=0 updated=0 unchanged=1398, rows in table=1398, fingerprint=87e8650a0d04c539
+00:36:38 | INFO    | loader           | Load #2: results inserted=0 updated=0 unchanged=1398, rows in table=1398, fingerprint=87e8650a0d04c539
+00:36:38 | INFO    | loader           | SQL check 'rows_per_table':
+  table_name  row_count
+       races         70
+     drivers         28
+constructors         12
+     results       1398
+00:36:38 | INFO    | loader           | SQL check 'duplicate_results':
+  (no rows)
+00:36:38 | INFO    | loader           | SQL check 'orphan_results':
+  (no rows)
+00:36:38 | INFO    | loader           | SQL check 'races_without_single_winner':
+  (no rows)
+00:36:38 | INFO    | loader           | SQL check 'results_per_season':
+ season  races  results  total_points
+   2023     22      440        2242.0
+   2024     24      479        2443.0
+   2025     24      479        2424.0
+00:36:38 | INFO    | loader           | SQL check 'top_drivers_per_season':
+ season     driver_name team_name  points
+   2023  Max Verstappen  Red Bull   530.0
+   2023    Sergio Pérez  Red Bull   260.0
+   2023  Lewis Hamilton  Mercedes   217.0
+   2024  Max Verstappen  Red Bull   399.0
+   2024    Lando Norris   McLaren   344.0
+   2024 Charles Leclerc   Ferrari   327.0
+   2025    Lando Norris   McLaren   394.0
+   2025  Max Verstappen  Red Bull   389.0
+   2025   Oscar Piastri   McLaren   381.0
+00:36:38 | INFO    | loader           | Processed records: 1398, stored in SQLite: 1398, idempotent: True
+00:36:38 | INFO    | main             | Step 7/7: exploratory data analysis
+00:36:38 | INFO    | analysis         | Dataset: 1398 rows x 26 columns
+00:36:38 | INFO    | analysis         | Data types:
+object            10
+int64              7
+float64            7
+datetime64[ns]     1
+bool               1
+00:36:38 | INFO    | analysis         | Numerical statistics:
+                   count    mean     std    min    25%    50%    75%      max   skew
+grid              1398.0   10.43    5.77   0.00   5.00  10.00  15.00    20.00   0.00
+position          1398.0   10.49    5.76   1.00   5.25  10.00  15.00    20.00   0.00
+points            1398.0    5.09    7.22   0.00   0.00   1.00   9.75    26.00   1.39
+laps              1398.0   55.34   16.36   0.00  51.00  57.00  69.00    78.00  -1.80
+positions_gained  1246.0    0.77    4.08 -19.00  -1.00   1.00   3.00    16.00  -0.05
+race_time_min     1244.0   94.37   14.22  73.41  85.70  91.90  98.65   152.75   1.95
+gap_to_winner_s   1244.0  140.06  376.09   0.00  19.81  50.28  84.18  3530.36   7.30
+fastest_lap_s     1346.0   87.81   10.54  67.01  79.58  87.61  95.98   136.12   0.28
+lap_pace_gap_pct  1346.0    2.13    2.52   0.00   1.04   1.86   2.84    52.37  11.27
+driver_age        1398.0   28.09    5.99  18.00  24.00  27.00  31.00    44.00   0.86
+00:36:38 | INFO    | analysis         | Categorical statistics:
+                 unique    most_frequent  frequency
+season                3             2024        479
+team_name            10           Alpine        140
+driver_name          28  Alexander Albon         70
+country              21    United States        180
+status_group          5         Finished        921
+result_category       5        No points        518
+00:36:38 | INFO    | analysis         | Result status shares:
+status_group
+Finished    65.9
+Lapped      21.2
+DNF         11.4
+DNS          0.8
+DSQ          0.7
+00:36:38 | INFO    | analysis         | Spearman correlation grid vs finish (classified finishers): 0.740
+00:36:38 | INFO    | analysis         | Wins from pole: 58.6%, from the front row: 78.6%, from outside the top 5: 5.7%
+00:36:38 | INFO    | analysis         | Win / podium rate by grid slot (%):
+                 win  podium
+grid_effective              
+1               58.6    82.9
+2               20.0    75.7
+3               10.0    47.1
+4                4.3    35.7
+5                1.4    21.4
+6                2.9    10.0
+7                0.0     5.7
+8                0.0     0.0
+9                1.4     2.9
+10               0.0     2.9
+00:36:38 | INFO    | analysis         | Team totals 2023-2025:
+              points  dnf_rate  median_lap_gap
+team_name                                     
+Red Bull      1737.0     0.079           0.996
+McLaren       1650.0     0.050           0.853
+Ferrari       1318.0     0.093           1.415
+Mercedes      1231.0     0.093           1.304
+Aston Martin   440.0     0.115           1.942
+Alpine         193.0     0.136           2.373
+Williams       167.0     0.216           2.178
+RB             150.0     0.129           2.352
+Haas           133.0     0.107           2.327
+Sauber          90.0     0.121           2.706
+00:36:38 | INFO    | analysis         | Spearman team median lap gap vs team points (per season): -0.867
+00:36:38 | INFO    | analysis         | Title margin in race points: {2023: 270.0, 2024: 55.0, 2025: 5.0}
+00:36:38 | INFO    | analysis         | Most positions gained on average (>= 20 classified finishes):
+                races  avg_gained
+driver_name                      
+Oliver Bearman     24        3.33
+Sergio Pérez       40        3.00
+Guanyu Zhou        41        2.12
+Lewis Hamilton     64        1.91
+Esteban Ocon       60        1.88
+00:36:38 | INFO    | analysis         | Saved figure fig1_team_points_by_season.png
+00:36:39 | INFO    | analysis         | Saved figure fig2_grid_vs_finish.png
+00:36:39 | INFO    | analysis         | Saved figure fig3_win_podium_rate_by_grid.png
+00:36:39 | INFO    | analysis         | Saved figure fig4_dnf_rate_by_team.png
+00:36:39 | INFO    | analysis         | Saved figure fig5_championship_progress.png
+00:36:39 | INFO    | analysis         | Saved figure fig6_lap_pace_heatmap.png
+00:36:39 | INFO    | main             | PIPELINE SUMMARY (2.8s)
+  Collected from API        1398
+  Published to Kafka        1398
+  Consumed from Kafka       1398
+  Validation input          1403
+  Valid records             1398
+  Invalid records              5
+  Records after cleaning    1398
+  Stored in SQLite          1398
+  - Validation input = 1398 consumed + 5 deliberately invalid test records.
+  - Invalid = 0 real + 5 test records (quarantined in data/invalid_records.csv, never cleaned or stored).
+  - Cleaning removed 0 duplicate record(s) (0 repeated record_id).
+  - Every cleaned record is stored exactly once in SQLite (results table).
+  Idempotent load: True
+00:36:40 | INFO    | kafka_admin      | Connected to Kafka at localhost:9092 (1 broker(s))
+00:36:51 | INFO    | consumer         | Consumed 2796 messages from 'f1-race-results' (malformed: 0, broker errors: 0); stopped because: no new messages for 10s
+00:36:51 | INFO    | consumer         | Saved consumed records -> consumed_data.csv
+00:36:52 | INFO    | validator        | Validated 2801 records (2796 real + 5 test): 2796 valid, 5 invalid (0 real, 5 test), 16 failed checks
+00:36:52 | INFO    | validator        |   INVALID 2023_01_test_wrong_types         race_date: coerce_dtype('datetime64[ns]'); grid: coerce_dtype('int64'); points: coerce_dtype('float64')
+00:36:52 | INFO    | validator        |   INVALID 2023_01_test_missing_required    driver_code: not_nullable; constructor_name: not_nullable; status: not_nullable
+00:36:52 | INFO    | validator        |   INVALID 2023_01_test_bad_category_and_date (row): race_date_in_season; driver_code: str_matches('^[A-Z]{3}$'); race_date: in_range(1950-05-13 00:00:00, 2026-11-21 00:00:00); season: isin([2023, 2024, 2025])
+00:36:52 | INFO    | validator        |   INVALID 2023_01_test_out_of_range        (row): position_text_matches_position; (row): points_only_for_top_10; grid: in_range(0, 26); position: in_range(1, 26); laps: in_range(0, 100)
+00:36:52 | INFO    | validator        |   INVALID 2023_01_test_conflicting_position (row): one_driver_per_position
+00:36:52 | INFO    | cleaner          | Missing values in validated data:
+                    missing  percent
+race_time_ms            308    11.02
+fastest_lap_rank        104     3.72
+fastest_lap_number      104     3.72
+fastest_lap_time        104     3.72
+00:36:53 | INFO    | cleaner          | Duplicates: 1398 exact, 1398 repeated record_id -> removed
+00:36:53 | INFO    | cleaner          | Cleaned 2796 -> 1398 records, 42 columns -> clean_data.csv
+00:36:53 | INFO    | cleaner          | Podium finishes from grid 8 or lower (multi-condition filter): 15
+00:36:53 | INFO    | cleaner          | Team points by season (pivot_table):
+season         2023   2024   2025
+team_name                        
+McLaren       266.0  609.0  775.0
+Mercedes      374.0  433.0  424.0
+Red Bull      790.0  537.0  410.0
+Ferrari       363.0  595.0  360.0
+Williams       26.0   17.0  124.0
+RB             22.0   40.0   88.0
+Aston Martin  266.0   94.0   80.0
+Haas            9.0   51.0   73.0
+Sauber         16.0    4.0   70.0
+Alpine        110.0   63.0   20.0
+00:36:53 | INFO    | loader           | Load #1: results inserted=0 updated=0 unchanged=1398, rows in table=1398, fingerprint=87e8650a0d04c539
+00:36:53 | INFO    | loader           | SQL check 'rows_per_table':
+  table_name  row_count
+       races         70
+     drivers         28
+constructors         12
+     results       1398
+00:36:53 | INFO    | loader           | SQL check 'duplicate_results':
+  (no rows)
+00:36:53 | INFO    | loader           | SQL check 'orphan_results':
+  (no rows)
+00:36:53 | INFO    | loader           | SQL check 'races_without_single_winner':
+  (no rows)
+00:36:53 | INFO    | loader           | SQL check 'results_per_season':
+ season  races  results  total_points
+   2023     22      440        2242.0
+   2024     24      479        2443.0
+   2025     24      479        2424.0
+00:36:53 | INFO    | loader           | SQL check 'top_drivers_per_season':
+ season     driver_name team_name  points
+   2023  Max Verstappen  Red Bull   530.0
+   2023    Sergio Pérez  Red Bull   260.0
+   2023  Lewis Hamilton  Mercedes   217.0
+   2024  Max Verstappen  Red Bull   399.0
+   2024    Lando Norris   McLaren   344.0
+   2024 Charles Leclerc   Ferrari   327.0
+   2025    Lando Norris   McLaren   394.0
+   2025  Max Verstappen  Red Bull   389.0
+   2025   Oscar Piastri   McLaren   381.0
+00:36:53 | INFO    | loader           | Processed records: 1398, stored in SQLite: 1398, idempotent: True
+00:37:03 | INFO    | main             | Step 1/7 skipped: reusing 1398 collected records from raw_data.csv
+00:37:03 | INFO    | main             | Step 2/7: publishing to Kafka
+00:37:13 | ERROR   | main             | Pipeline stopped: Kafka broker is not reachable at localhost:9092. Start it with: docker compose up -d
+00:37:46 | ERROR   | api_client       | Collection failed: https://api.jolpi.ca/ergast/f1/unknown/2024/results/?limit=100&offset=0 returned HTTP 404 (not retryable)
+00:37:57 | ERROR   | producer         | Kafka broker is not reachable at localhost:9092. Start it with: docker compose up -d
+00:37:59 | INFO    | main             | Step 1/7 skipped: reusing 1398 collected records from raw_data.csv
+00:37:59 | INFO    | main             | Step 2/7: publishing to Kafka
+00:38:09 | ERROR   | main             | Pipeline stopped: Kafka broker is not reachable at localhost:9092. Start it with: docker compose up -d
+00:38:34 | INFO    | kafka_admin      | Connected to Kafka at localhost:9092 (1 broker(s))
+00:38:34 | INFO    | kafka_admin      | Topic 'f1-race-results': {0: 968, 1: 912, 2: 916} messages per partition, 2796 in total
+00:38:45 | INFO    | kafka_admin      | Connected to Kafka at localhost:9092 (1 broker(s))
+00:38:45 | WARNING | consumer         | Skipping malformed message at partition 0 offset 1: Expecting value: line 1 column 1 (char 0)
+00:38:45 | WARNING | consumer         | Skipping malformed message at partition 0 offset 2: expected a JSON object, got list
+00:38:50 | INFO    | consumer         | Consumed 2 messages from 'f1-error-demo' (malformed: 2, broker errors: 0); stopped because: no new messages for 5s
+00:38:50 | INFO    | consumer         | Saved consumed records -> consumed_data.csv
+00:39:01 | INFO    | main             | Step 1/7 skipped: reusing 1398 collected records from raw_data.csv
+00:39:01 | INFO    | main             | Step 2/7: publishing to Kafka
+00:39:01 | INFO    | kafka_admin      | Connected to Kafka at localhost:9092 (1 broker(s))
+00:39:01 | INFO    | kafka_admin      | Topic 'f1-race-results' already exists
+00:39:01 | INFO    | producer         | Loaded 1398 raw records from raw_data.csv
+00:39:02 | INFO    | producer         | Published 1398/1398 messages to 'f1-race-results' (failed: 0), per partition: {0: 484, 1: 456, 2: 458}
+00:39:02 | INFO    | main             | Step 3/7: consuming from Kafka
+00:39:02 | INFO    | kafka_admin      | Connected to Kafka at localhost:9092 (1 broker(s))
+00:39:02 | INFO    | consumer         | Consumed 1398 messages from 'f1-race-results' (malformed: 0, broker errors: 0); stopped because: expected message count reached
+00:39:02 | INFO    | consumer         | Saved consumed records -> consumed_data.csv
+00:39:02 | INFO    | main             | Step 4/7: validating with Pandera
+00:39:03 | INFO    | validator        | Validated 1403 records (1398 real + 5 test): 1398 valid, 5 invalid (0 real, 5 test), 16 failed checks
+00:39:03 | INFO    | validator        |   INVALID 2023_01_test_wrong_types         race_date: coerce_dtype('datetime64[ns]'); grid: coerce_dtype('int64'); points: coerce_dtype('float64')
+00:39:03 | INFO    | validator        |   INVALID 2023_01_test_missing_required    driver_code: not_nullable; constructor_name: not_nullable; status: not_nullable
+00:39:03 | INFO    | validator        |   INVALID 2023_01_test_bad_category_and_date (row): race_date_in_season; driver_code: str_matches('^[A-Z]{3}$'); race_date: in_range(1950-05-13 00:00:00, 2026-11-21 00:00:00); season: isin([2023, 2024, 2025])
+00:39:03 | INFO    | validator        |   INVALID 2023_01_test_out_of_range        (row): position_text_matches_position; (row): points_only_for_top_10; grid: in_range(0, 26); position: in_range(1, 26); laps: in_range(0, 100)
+00:39:03 | INFO    | validator        |   INVALID 2023_01_test_conflicting_position (row): one_driver_per_position
+00:39:03 | INFO    | main             | Step 5/7: cleaning and transforming
+00:39:03 | INFO    | cleaner          | Missing values in validated data:
+                    missing  percent
+race_time_ms            154    11.02
+fastest_lap_rank         52     3.72
+fastest_lap_number       52     3.72
+fastest_lap_time         52     3.72
+00:39:03 | INFO    | cleaner          | Duplicates: 0 exact, 0 repeated record_id -> removed
+00:39:03 | INFO    | cleaner          | Cleaned 1398 -> 1398 records, 42 columns -> clean_data.csv
+00:39:03 | INFO    | cleaner          | Podium finishes from grid 8 or lower (multi-condition filter): 15
+00:39:03 | INFO    | cleaner          | Team points by season (pivot_table):
+season         2023   2024   2025
+team_name                        
+McLaren       266.0  609.0  775.0
+Mercedes      374.0  433.0  424.0
+Red Bull      790.0  537.0  410.0
+Ferrari       363.0  595.0  360.0
+Williams       26.0   17.0  124.0
+RB             22.0   40.0   88.0
+Aston Martin  266.0   94.0   80.0
+Haas            9.0   51.0   73.0
+Sauber         16.0    4.0   70.0
+Alpine        110.0   63.0   20.0
+00:39:03 | INFO    | main             | Step 6/7: loading into SQLite (twice, to prove idempotency)
+00:39:03 | INFO    | loader           | Load #1: results inserted=0 updated=0 unchanged=1398, rows in table=1398, fingerprint=87e8650a0d04c539
+00:39:03 | INFO    | loader           | Load #2: results inserted=0 updated=0 unchanged=1398, rows in table=1398, fingerprint=87e8650a0d04c539
+00:39:03 | INFO    | loader           | SQL check 'rows_per_table':
+  table_name  row_count
+       races         70
+     drivers         28
+constructors         12
+     results       1398
+00:39:03 | INFO    | loader           | SQL check 'duplicate_results':
+  (no rows)
+00:39:03 | INFO    | loader           | SQL check 'orphan_results':
+  (no rows)
+00:39:03 | INFO    | loader           | SQL check 'races_without_single_winner':
+  (no rows)
+00:39:03 | INFO    | loader           | SQL check 'results_per_season':
+ season  races  results  total_points
+   2023     22      440        2242.0
+   2024     24      479        2443.0
+   2025     24      479        2424.0
+00:39:03 | INFO    | loader           | SQL check 'top_drivers_per_season':
+ season     driver_name team_name  points
+   2023  Max Verstappen  Red Bull   530.0
+   2023    Sergio Pérez  Red Bull   260.0
+   2023  Lewis Hamilton  Mercedes   217.0
+   2024  Max Verstappen  Red Bull   399.0
+   2024    Lando Norris   McLaren   344.0
+   2024 Charles Leclerc   Ferrari   327.0
+   2025    Lando Norris   McLaren   394.0
+   2025  Max Verstappen  Red Bull   389.0
+   2025   Oscar Piastri   McLaren   381.0
+00:39:03 | INFO    | loader           | Processed records: 1398, stored in SQLite: 1398, idempotent: True
+00:39:03 | INFO    | main             | Step 7/7: exploratory data analysis
+00:39:03 | INFO    | analysis         | Dataset: 1398 rows x 26 columns
+00:39:03 | INFO    | analysis         | Data types:
+object            10
+int64              7
+float64            7
+datetime64[ns]     1
+bool               1
+00:39:03 | INFO    | analysis         | Numerical statistics:
+                   count    mean     std    min    25%    50%    75%      max   skew
+grid              1398.0   10.43    5.77   0.00   5.00  10.00  15.00    20.00   0.00
+position          1398.0   10.49    5.76   1.00   5.25  10.00  15.00    20.00   0.00
+points            1398.0    5.09    7.22   0.00   0.00   1.00   9.75    26.00   1.39
+laps              1398.0   55.34   16.36   0.00  51.00  57.00  69.00    78.00  -1.80
+positions_gained  1246.0    0.77    4.08 -19.00  -1.00   1.00   3.00    16.00  -0.05
+race_time_min     1244.0   94.37   14.22  73.41  85.70  91.90  98.65   152.75   1.95
+gap_to_winner_s   1244.0  140.06  376.09   0.00  19.81  50.28  84.18  3530.36   7.30
+fastest_lap_s     1346.0   87.81   10.54  67.01  79.58  87.61  95.98   136.12   0.28
+lap_pace_gap_pct  1346.0    2.13    2.52   0.00   1.04   1.86   2.84    52.37  11.27
+driver_age        1398.0   28.09    5.99  18.00  24.00  27.00  31.00    44.00   0.86
+00:39:03 | INFO    | analysis         | Categorical statistics:
+                 unique    most_frequent  frequency
+season                3             2024        479
+team_name            10           Alpine        140
+driver_name          28  Alexander Albon         70
+country              21    United States        180
+status_group          5         Finished        921
+result_category       5        No points        518
+00:39:03 | INFO    | analysis         | Result status shares:
+status_group
+Finished    65.9
+Lapped      21.2
+DNF         11.4
+DNS          0.8
+DSQ          0.7
+00:39:03 | INFO    | analysis         | Spearman correlation grid vs finish (classified finishers): 0.740
+00:39:03 | INFO    | analysis         | Wins from pole: 58.6%, from the front row: 78.6%, from outside the top 5: 5.7%
+00:39:03 | INFO    | analysis         | Win / podium rate by grid slot (%):
+                 win  podium
+grid_effective              
+1               58.6    82.9
+2               20.0    75.7
+3               10.0    47.1
+4                4.3    35.7
+5                1.4    21.4
+6                2.9    10.0
+7                0.0     5.7
+8                0.0     0.0
+9                1.4     2.9
+10               0.0     2.9
+00:39:03 | INFO    | analysis         | Team totals 2023-2025:
+              points  dnf_rate  median_lap_gap
+team_name                                     
+Red Bull      1737.0     0.079           0.996
+McLaren       1650.0     0.050           0.853
+Ferrari       1318.0     0.093           1.415
+Mercedes      1231.0     0.093           1.304
+Aston Martin   440.0     0.115           1.942
+Alpine         193.0     0.136           2.373
+Williams       167.0     0.216           2.178
+RB             150.0     0.129           2.352
+Haas           133.0     0.107           2.327
+Sauber          90.0     0.121           2.706
+00:39:03 | INFO    | analysis         | Spearman team median lap gap vs team points (per season): -0.867
+00:39:03 | INFO    | analysis         | Title margin in race points: {2023: 270.0, 2024: 55.0, 2025: 5.0}
+00:39:03 | INFO    | analysis         | Most positions gained on average (>= 20 classified finishes):
+                races  avg_gained
+driver_name                      
+Oliver Bearman     24        3.33
+Sergio Pérez       40        3.00
+Guanyu Zhou        41        2.12
+Lewis Hamilton     64        1.91
+Esteban Ocon       60        1.88
+00:39:03 | INFO    | analysis         | Saved figure fig1_team_points_by_season.png
+00:39:03 | INFO    | analysis         | Saved figure fig2_grid_vs_finish.png
+00:39:04 | INFO    | analysis         | Saved figure fig3_win_podium_rate_by_grid.png
+00:39:04 | INFO    | analysis         | Saved figure fig4_dnf_rate_by_team.png
+00:39:04 | INFO    | analysis         | Saved figure fig5_championship_progress.png
+00:39:04 | INFO    | analysis         | Saved figure fig6_lap_pace_heatmap.png
+00:39:04 | INFO    | main             | PIPELINE SUMMARY (2.8s)
+  Collected from API        1398
+  Published to Kafka        1398
+  Consumed from Kafka       1398
+  Validation input          1403
+  Valid records             1398
+  Invalid records              5
+  Records after cleaning    1398
+  Stored in SQLite          1398
+  - Validation input = 1398 consumed + 5 deliberately invalid test records.
+  - Invalid = 0 real + 5 test records (quarantined in data/invalid_records.csv, never cleaned or stored).
+  - Cleaning removed 0 duplicate record(s) (0 repeated record_id).
+  - Every cleaned record is stored exactly once in SQLite (results table).
+  Idempotent load: True

@@ -1,0 +1,15 @@
+{
+  "spearman_grid_vs_finish": 0.74,
+  "wins_from_pole_pct": 58.6,
+  "wins_from_front_row_pct": 78.6,
+  "wins_from_outside_top5_pct": 5.7,
+  "overall_dnf_rate_pct": 11.4,
+  "spearman_team_pace_vs_points": -0.867,
+  "title_margin_race_points": {
+    "2023": 270.0,
+    "2024": 55.0,
+    "2025": 5.0
+  },
+  "rows": 1398,
+  "columns": 26
+}

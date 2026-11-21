@@ -1,0 +1,17 @@
+record_id,column,check,failure_case
+2023_01_test_wrong_types,race_date,coerce_dtype('datetime64[ns]'),2024-02-30
+2023_01_test_wrong_types,grid,coerce_dtype('int64'),P1
+2023_01_test_wrong_types,points,coerce_dtype('float64'),twenty-five
+2023_01_test_missing_required,driver_code,not_nullable,
+2023_01_test_missing_required,constructor_name,not_nullable,
+2023_01_test_missing_required,status,not_nullable,
+2023_01_test_bad_category_and_date,(row),race_date_in_season,rule violated
+2023_01_test_out_of_range,(row),position_text_matches_position,rule violated
+2023_01_test_conflicting_position,(row),one_driver_per_position,rule violated
+2023_01_test_out_of_range,(row),points_only_for_top_10,rule violated
+2023_01_test_out_of_range,grid,"in_range(0, 26)",40
+2023_01_test_bad_category_and_date,driver_code,str_matches('^[A-Z]{3}$'),verstappen
+2023_01_test_bad_category_and_date,race_date,"in_range(1950-05-13 00:00:00, 2026-11-21 00:00:00)",2031-07-06 00:00:00
+2023_01_test_out_of_range,position,"in_range(1, 26)",35
+2023_01_test_out_of_range,laps,"in_range(0, 100)",-5
+2023_01_test_bad_category_and_date,season,"isin([2023, 2024, 2025])",1949

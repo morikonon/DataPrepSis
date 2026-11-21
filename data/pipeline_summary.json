@@ -1,0 +1,174 @@
+{
+  "counts": {
+    "collected": 1398,
+    "published": 1398,
+    "consumed": 1398,
+    "validation_input": 1403,
+    "valid": 1398,
+    "invalid": 5,
+    "cleaned": 1398,
+    "stored": 1398
+  },
+  "notes": [
+    "Validation input = 1398 consumed + 5 deliberately invalid test records.",
+    "Invalid = 0 real + 5 test records (quarantined in data/invalid_records.csv, never cleaned or stored).",
+    "Cleaning removed 0 duplicate record(s) (0 repeated record_id).",
+    "Every cleaned record is stored exactly once in SQLite (results table)."
+  ],
+  "kafka": {
+    "producer": {
+      "attempted": 1398,
+      "published": 1398,
+      "failed": 0,
+      "per_partition": {
+        "0": 484,
+        "1": 456,
+        "2": 458
+      }
+    },
+    "consumer": {
+      "consumed": 1398,
+      "malformed": 0,
+      "broker_errors": 0,
+      "stop_reason": "expected message count reached"
+    }
+  },
+  "validation": {
+    "input_records": 1403,
+    "real_records": 1398,
+    "test_records": 5,
+    "valid": 1398,
+    "invalid": 5,
+    "invalid_real": 0,
+    "invalid_test": 5,
+    "failed_checks": 16,
+    "errors_by_check": {
+      "not_nullable": 3,
+      "coerce_dtype('datetime64[ns]')": 1,
+      "coerce_dtype('int64')": 1,
+      "coerce_dtype('float64')": 1,
+      "race_date_in_season": 1,
+      "position_text_matches_position": 1,
+      "one_driver_per_position": 1,
+      "points_only_for_top_10": 1,
+      "in_range(0, 26)": 1,
+      "str_matches('^[A-Z]{3}$')": 1,
+      "in_range(1950-05-13 00:00:00, 2026-11-21 00:00:00)": 1,
+      "in_range(1, 26)": 1,
+      "in_range(0, 100)": 1,
+      "isin([2023, 2024, 2025])": 1
+    }
+  },
+  "cleaning": {
+    "input_records": 1398,
+    "missing_before": {
+      "race_time_ms": 154,
+      "fastest_lap_rank": 52,
+      "fastest_lap_number": 52,
+      "fastest_lap_time": 52
+    },
+    "exact_duplicates": 0,
+    "duplicate_record_ids": 0,
+    "missing_after": {
+      "race_time_ms": 154,
+      "race_time_s": 154,
+      "gap_to_winner_s": 154,
+      "positions_gained": 152,
+      "fastest_lap_rank": 52,
+      "fastest_lap_number": 52,
+      "fastest_lap_time": 52,
+      "fastest_lap_s": 52,
+      "lap_pace_gap_pct": 52
+    },
+    "output_records": 1398,
+    "comeback_drives": 15
+  },
+  "loading": {
+    "processed_records": 1398,
+    "stored_records": 1398,
+    "loads": [
+      {
+        "races": {
+          "input": 70,
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 70,
+          "rows_in_table": 70
+        },
+        "drivers": {
+          "input": 28,
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 28,
+          "rows_in_table": 28
+        },
+        "constructors": {
+          "input": 12,
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 12,
+          "rows_in_table": 12
+        },
+        "results": {
+          "input": 1398,
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 1398,
+          "rows_in_table": 1398
+        },
+        "fingerprint": "87e8650a0d04c539"
+      },
+      {
+        "races": {
+          "input": 70,
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 70,
+          "rows_in_table": 70
+        },
+        "drivers": {
+          "input": 28,
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 28,
+          "rows_in_table": 28
+        },
+        "constructors": {
+          "input": 12,
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 12,
+          "rows_in_table": 12
+        },
+        "results": {
+          "input": 1398,
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 1398,
+          "rows_in_table": 1398
+        },
+        "fingerprint": "87e8650a0d04c539"
+      }
+    ],
+    "idempotent": true,
+    "duplicate_results": 0,
+    "orphan_results": 0,
+    "races_without_single_winner": 0
+  },
+  "eda": {
+    "spearman_grid_vs_finish": 0.74,
+    "wins_from_pole_pct": 58.6,
+    "wins_from_front_row_pct": 78.6,
+    "wins_from_outside_top5_pct": 5.7,
+    "overall_dnf_rate_pct": 11.4,
+    "spearman_team_pace_vs_points": -0.867,
+    "title_margin_race_points": {
+      "2023": 270.0,
+      "2024": 55.0,
+      "2025": 5.0
+    },
+    "rows": 1398,
+    "columns": 26
+  },
+  "runtime_s": 2.8
+}
