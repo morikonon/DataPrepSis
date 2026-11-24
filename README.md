@@ -205,6 +205,7 @@ change slightly in a later run, because questions get deleted, edited and answer
 5. `python -m src.loader --verify-only` reports 2649 questions and no rows for the `questions_without_tool`,
    `tag_count_mismatch` and `inconsistent_answers` checks.
 6. `figures/` contains `fig1` … `fig5`.
+   
 
 All runs are also appended to `logs/pipeline.log`.
 
