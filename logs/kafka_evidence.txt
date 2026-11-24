@@ -1,0 +1,30 @@
+$ docker compose ps
+NAME       IMAGE                STATUS                   PORTS
+so-kafka   apache/kafka:3.9.1   Up 7 minutes (healthy)   0.0.0.0:9092->9092/tcp, [::]:9092->9092/tcp
+
+$ docker exec so-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic so-questions
+Topic: so-questions	TopicId: 7ki4S_E9TnSw5MGog89jmQ	PartitionCount: 3	ReplicationFactor: 1	Configs: cleanup.policy=delete,retention.ms=604800000
+	Topic: so-questions	Partition: 0	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr: 
+	Topic: so-questions	Partition: 1	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr: 
+	Topic: so-questions	Partition: 2	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr: 
+
+$ docker exec so-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group so-pipeline-consumer
+
+Consumer group 'so-pipeline-consumer' has no active members.
+
+GROUP                TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+so-pipeline-consumer so-questions    1          930             930             0               -               -               -
+so-pipeline-consumer so-questions    0          933             933             0               -               -               -
+so-pipeline-consumer so-questions    2          882             882             0               -               -               -
+$ docker exec so-kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic so-questions --partition 0 --offset 0 --max-messages 1 --property print.partition=true --property print.offset=true --property print.key=true
+Partition:0	Offset:0	79321942	{"question_id": "79321942", "query_tag": "pandas", "title": "Referring to a Series element within pandas.query()", "tags": "pandas", "link": "https://stackoverflow.com/questions/79321942/referring-to-a-series-element-within-pandas-query", "score": "1", "view_count": "63", "answer_count": "1", "is_answered": "True", "accepted_answer_id": null, "creation_date": "1735748627", "last_activity_date": "1735751074", "last_edit_date": null, "closed_date": null, "closed_reason": null, "content_license": "CC BY-SA 4.0", "owner_user_id": "2691456", "owner_user_type": "registered", "owner_reputation": "11", "owner_accept_rate": null, "first_answer_date": "1735750434", "accepted_answer_date": null, "collected_at": "2026-11-24T16:21:58+00:00"}
+Processed a total of 1 messages
+
+$ docker exec so-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group so-pipeline-consumer   (after the repeated run)
+
+Consumer group 'so-pipeline-consumer' has no active members.
+
+GROUP                TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+so-pipeline-consumer so-questions    1          1860            1860            0               -               -               -
+so-pipeline-consumer so-questions    0          1866            1866            0               -               -               -
+so-pipeline-consumer so-questions    2          1764            1764            0               -               -               -

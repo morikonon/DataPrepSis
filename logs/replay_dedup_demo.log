@@ -1,0 +1,3 @@
+21:31:52 | INFO    | replay_demo  | Re-reading the whole topic with a new consumer group (the dataset was published twice)
+21:32:03 | INFO    | consumer     | Consumed 5490 messages from 'so-questions' (malformed: 0, broker errors: 0); stopped because: no new messages for 10s
+21:32:03 | INFO    | replay_demo  | Valid: 5490, cleaned: 2649 (exact Kafka copies removed: 2745, same question under another tag: 96)

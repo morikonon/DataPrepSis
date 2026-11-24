@@ -44,7 +44,7 @@ class DeliveryReport:
 
 
 def publish(records: list[dict], topic: str = config.KAFKA_TOPIC) -> dict:
-    """Send every record (key = record_id) and wait until the broker acknowledges all of them."""
+    """Send every record (key = question_id) and wait until the broker acknowledges all of them."""
     producer = Producer({
         "bootstrap.servers": config.KAFKA_BOOTSTRAP_SERVERS,
         "acks": "all",
@@ -60,18 +60,18 @@ def publish(records: list[dict], topic: str = config.KAFKA_TOPIC) -> dict:
             value = serialize(record)
         except (TypeError, ValueError) as exc:
             not_sent += 1
-            log.error("Cannot serialize record %s: %s", record.get("record_id"), exc)
+            log.error("Cannot serialize question %s: %s", record.get("question_id"), exc)
             continue
         while True:
             try:
-                producer.produce(topic, key=record["record_id"], value=value,
-                                 headers={"source": "jolpica-f1-api"}, on_delivery=report)
+                producer.produce(topic, key=record["question_id"], value=value,
+                                 headers={"source": "stackexchange-api"}, on_delivery=report)
                 break
             except BufferError:
                 producer.poll(1)  # local queue is full: serve delivery callbacks, then retry
             except KafkaException as exc:
                 not_sent += 1
-                log.error("Cannot produce record %s: %s", record["record_id"], exc)
+                log.error("Cannot produce question %s: %s", record["question_id"], exc)
                 break
         producer.poll(0)
 

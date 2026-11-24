@@ -58,7 +58,7 @@ def topic_exists(topic: str = config.KAFKA_TOPIC) -> bool:
 
 def describe_topic(topic: str = config.KAFKA_TOPIC) -> dict[int, int]:
     """Return {partition: number of messages currently stored} using the low/high watermarks."""
-    consumer = Consumer({"bootstrap.servers": config.KAFKA_BOOTSTRAP_SERVERS, "group.id": "f1-topic-inspector"})
+    consumer = Consumer({"bootstrap.servers": config.KAFKA_BOOTSTRAP_SERVERS, "group.id": "so-topic-inspector"})
     try:
         topic_metadata = consumer.list_topics(topic, timeout=10).topics[topic]
         if topic_metadata.error is not None:

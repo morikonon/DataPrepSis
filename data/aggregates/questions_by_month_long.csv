@@ -1,0 +1,73 @@
+creation_month,tool,questions
+2025-01,Airflow,35
+2025-02,Airflow,22
+2025-03,Airflow,22
+2025-04,Airflow,17
+2025-05,Airflow,14
+2025-06,Airflow,4
+2025-07,Airflow,6
+2025-08,Airflow,11
+2025-09,Airflow,13
+2025-10,Airflow,12
+2025-11,Airflow,7
+2025-12,Airflow,4
+2025-01,Kafka,56
+2025-02,Kafka,47
+2025-03,Kafka,42
+2025-04,Kafka,45
+2025-05,Kafka,28
+2025-06,Kafka,38
+2025-07,Kafka,27
+2025-08,Kafka,17
+2025-09,Kafka,16
+2025-10,Kafka,18
+2025-11,Kafka,13
+2025-12,Kafka,16
+2025-01,SQLite,62
+2025-02,SQLite,33
+2025-03,SQLite,49
+2025-04,SQLite,34
+2025-05,SQLite,30
+2025-06,SQLite,16
+2025-07,SQLite,16
+2025-08,SQLite,15
+2025-09,SQLite,12
+2025-10,SQLite,17
+2025-11,SQLite,15
+2025-12,SQLite,7
+2025-01,Selenium,111
+2025-02,Selenium,83
+2025-03,Selenium,89
+2025-04,Selenium,68
+2025-05,Selenium,61
+2025-06,Selenium,38
+2025-07,Selenium,34
+2025-08,Selenium,25
+2025-09,Selenium,17
+2025-10,Selenium,26
+2025-11,Selenium,17
+2025-12,Selenium,19
+2025-01,Web scraping,55
+2025-02,Web scraping,50
+2025-03,Web scraping,36
+2025-04,Web scraping,26
+2025-05,Web scraping,21
+2025-06,Web scraping,23
+2025-07,Web scraping,12
+2025-08,Web scraping,10
+2025-09,Web scraping,11
+2025-10,Web scraping,9
+2025-11,Web scraping,7
+2025-12,Web scraping,6
+2025-01,pandas,177
+2025-02,pandas,155
+2025-03,pandas,137
+2025-04,pandas,106
+2025-05,pandas,106
+2025-06,pandas,73
+2025-07,pandas,74
+2025-08,pandas,54
+2025-09,pandas,49
+2025-10,pandas,52
+2025-11,pandas,43
+2025-12,pandas,29

@@ -11,73 +11,87 @@ from src import config
 
 log = logging.getLogger("validator")
 
-FIRST_F1_RACE = pd.Timestamp("1950-05-13")
-MAX_CARS = 26
-NAME = pa.Column(str, pa.Check.str_length(min_value=1))
+FROM_TS, TO_TS = config.unix_range()
+NOW_TS = int(pd.Timestamp.now(tz="UTC").timestamp())
+CLOSE_REASONS = ["Duplicate", "Needs details or clarity", "Needs more focus", "Not suitable for this site",
+                 "Opinion-based"]
+USER_TYPES = ["registered", "unregistered", "does_not_exist"]
+LICENSES = ["CC BY-SA 2.5", "CC BY-SA 3.0", "CC BY-SA 4.0"]
+TEST_ID_BASE = 900_000_000  # far above real question ids, so test records are easy to recognise
+OPTIONAL_TIMESTAMP = pa.Column("Int64", pa.Check.le(NOW_TS), nullable=True)
 
 
-def points_only_for_top_10(df: pd.DataFrame) -> pd.Series:
-    return (df["position"] <= 10) | (df["points"] == 0)
+def not_before(later: pd.Series, earlier: pd.Series) -> pd.Series:
+    """True where `later` is missing or not earlier than `earlier`."""
+    return (later.isna() | (later >= earlier)).fillna(False).astype(bool)
 
 
-def race_date_in_season(df: pd.DataFrame) -> pd.Series:
-    return df["race_date"].dt.year == df["season"]
+def query_tag_in_tags(df: pd.DataFrame) -> pd.Series:
+    return pd.Series([tag in tags.split(";") for tag, tags in zip(df["query_tag"], df["tags"])], index=df.index)
 
 
-def position_text_matches_position(df: pd.DataFrame) -> pd.Series:
-    is_classified = df["position_text"].str.isdigit()
-    return ~is_classified | (pd.to_numeric(df["position_text"], errors="coerce") == df["position"])
+def link_matches_question_id(df: pd.DataFrame) -> pd.Series:
+    return df["link"].str.extract(r"/questions/(\d+)/", expand=False) == df["question_id"].astype(str)
 
 
-def finisher_has_race_time(df: pd.DataFrame) -> pd.Series:
-    return ~df["status"].isin(["Finished", "Lapped"]) | df["race_time_ms"].notna()
+def activity_after_creation(df: pd.DataFrame) -> pd.Series:
+    return (not_before(df["last_activity_date"], df["creation_date"])
+            & not_before(df["last_edit_date"], df["creation_date"])
+            & not_before(df["closed_date"], df["creation_date"]))
 
 
-def driver_age_plausible(df: pd.DataFrame) -> pd.Series:
-    age_years = (df["race_date"] - df["driver_dob"]).dt.days / 365.25
-    return age_years.between(16, 60)
+def answers_after_question(df: pd.DataFrame) -> pd.Series:
+    return (not_before(df["first_answer_date"], df["creation_date"])
+            & not_before(df["accepted_answer_date"], df["first_answer_date"]))
 
 
-def one_driver_per_position(df: pd.DataFrame) -> pd.Series:
-    """A finishing position belongs to one driver; an exact redelivered copy passes (the cleaner drops it)."""
-    first_driver = df.groupby(["season", "round", "position"])["driver_id"].transform("first")
-    return df["driver_id"] == first_driver
+def answer_fields_consistent(df: pd.DataFrame) -> pd.Series:
+    """Answers exist exactly when a first-answer date exists; 'answered' needs at least one answer."""
+    has_answers = df["answer_count"] > 0
+    is_answered = df["is_answered"] == "True"
+    return (has_answers == df["first_answer_date"].notna()) & (~is_answered | has_answers)
+
+
+def accepted_answer_consistent(df: pd.DataFrame) -> pd.Series:
+    return df["accepted_answer_id"].notna() == df["accepted_answer_date"].notna()
+
+
+def closed_fields_consistent(df: pd.DataFrame) -> pd.Series:
+    return df["closed_date"].notna() == df["closed_reason"].notna()
 
 
 RULES_SCHEMA = pa.DataFrameSchema(
     columns={
-        "record_id": pa.Column(str, pa.Check.str_matches(r"^\d{4}_\d{2}_[a-z_]+$")),
-        "season": pa.Column(int, pa.Check.isin(config.SEASONS)),
-        "round": pa.Column(int, pa.Check.in_range(1, 24)),
-        "race_name": pa.Column(str, pa.Check.str_matches(r".+ Grand Prix$")),
-        "race_date": pa.Column("datetime64[ns]", pa.Check.in_range(FIRST_F1_RACE, pd.Timestamp.today().normalize())),
-        "race_start_time": pa.Column(str, pa.Check.str_matches(r"^([01]\d|2[0-3]):[0-5]\d:[0-5]\dZ$")),
-        "circuit_id": NAME,
-        "country": NAME,
-        "driver_id": NAME,
-        "driver_code": pa.Column(str, pa.Check.str_matches(r"^[A-Z]{3}$")),
-        "given_name": NAME,
-        "family_name": NAME,
-        "driver_dob": pa.Column("datetime64[ns]"),
-        "constructor_id": NAME,
-        "constructor_name": NAME,
-        "grid": pa.Column(int, pa.Check.in_range(0, MAX_CARS)),  # 0 = pit-lane start
-        "position": pa.Column(int, pa.Check.in_range(1, MAX_CARS)),
-        "position_text": pa.Column(str, pa.Check.str_matches(r"^(\d+|[RDEWFN])$")),
-        "points": pa.Column(float, pa.Check.in_range(0, 26)),  # 25 for a win + 1 for the fastest lap
-        "laps": pa.Column(int, pa.Check.in_range(0, 100)),
-        "status": NAME,
-        "race_time_ms": pa.Column(float, pa.Check.gt(0), nullable=True),
-        "fastest_lap_rank": pa.Column(float, pa.Check.in_range(1, MAX_CARS), nullable=True),
-        "fastest_lap_time": pa.Column(str, pa.Check.str_matches(r"^\d+:\d{2}\.\d{3}$"), nullable=True),
+        "question_id": pa.Column(int, pa.Check.gt(0)),
+        "query_tag": pa.Column(str, pa.Check.isin(config.TAGS)),
+        # Stack Overflow requires at least 15 characters; HTML entities (&quot;) make raw titles longer than 150.
+        "title": pa.Column(str, pa.Check.str_length(15, 300)),
+        "tags": pa.Column(str, pa.Check.str_matches(r"^[a-z0-9+#.-]+(;[a-z0-9+#.-]+){0,4}$")),  # 1-5 tags
+        "link": pa.Column(str, pa.Check.str_matches(r"^https://stackoverflow\.com/questions/\d+/")),
+        "score": pa.Column(int, pa.Check.in_range(-100, 100_000)),
+        "view_count": pa.Column(int, pa.Check.ge(0)),
+        "answer_count": pa.Column(int, pa.Check.in_range(0, 100)),
+        "is_answered": pa.Column(str, pa.Check.isin(["True", "False"])),
+        "accepted_answer_id": pa.Column("Int64", pa.Check.gt(0), nullable=True),
+        "creation_date": pa.Column(int, pa.Check.in_range(FROM_TS, TO_TS)),
+        "last_activity_date": pa.Column(int, pa.Check.le(NOW_TS)),
+        "last_edit_date": OPTIONAL_TIMESTAMP,
+        "closed_date": OPTIONAL_TIMESTAMP,
+        "closed_reason": pa.Column(str, pa.Check.isin(CLOSE_REASONS), nullable=True),
+        "content_license": pa.Column(str, pa.Check.isin(LICENSES), nullable=True),
+        "owner_user_type": pa.Column(str, pa.Check.isin(USER_TYPES)),
+        "owner_reputation": pa.Column("Int64", pa.Check.ge(1), nullable=True),
+        "first_answer_date": OPTIONAL_TIMESTAMP,
+        "accepted_answer_date": OPTIONAL_TIMESTAMP,
     },
     checks=[
-        pa.Check(points_only_for_top_10, name="points_only_for_top_10"),
-        pa.Check(race_date_in_season, name="race_date_in_season"),
-        pa.Check(position_text_matches_position, name="position_text_matches_position"),
-        pa.Check(finisher_has_race_time, name="finisher_has_race_time"),
-        pa.Check(driver_age_plausible, name="driver_age_plausible"),
-        pa.Check(one_driver_per_position, name="one_driver_per_position"),
+        pa.Check(query_tag_in_tags, name="query_tag_in_tags"),
+        pa.Check(link_matches_question_id, name="link_matches_question_id"),
+        pa.Check(activity_after_creation, name="activity_after_creation"),
+        pa.Check(answers_after_question, name="answers_after_question"),
+        pa.Check(answer_fields_consistent, name="answer_fields_consistent"),
+        pa.Check(accepted_answer_consistent, name="accepted_answer_consistent"),
+        pa.Check(closed_fields_consistent, name="closed_fields_consistent"),
     ],
     coerce=True,
     strict=False,
@@ -98,18 +112,23 @@ class ValidationResult:
 
 def build_test_records(df: pd.DataFrame) -> pd.DataFrame:
     """Deliberately invalid copies of a real record; each one targets different rules."""
-    template = df.sort_values("record_id").iloc[0].to_dict()
+    template = df.sort_values("question_id").iloc[0].to_dict()
+    created = int(template["creation_date"])
     cases = {
-        "wrong_types": {"points": "twenty-five", "grid": "P1", "race_date": "2024-02-30"},
-        "missing_required": {"constructor_name": None, "driver_code": None, "status": None},
-        "out_of_range": {"position": "35", "laps": "-5", "grid": "40", "points": "18"},
-        "bad_category_and_date": {"season": "1949", "race_date": "2031-07-06", "driver_code": "verstappen"},
-        "conflicting_position": {"driver_id": "test_driver", "position": "1", "position_text": "1"},
+        "wrong_types": {"score": "high", "view_count": "1.2k", "creation_date": "2025-13-01"},
+        "missing_required": {"title": None, "tags": None, "owner_user_type": None},
+        "out_of_range": {"title": "help", "answer_count": "-1", "creation_date": "1577836800"},
+        "bad_categories": {"query_tag": "excel", "is_answered": "yes", "owner_user_type": "moderator",
+                           "closed_reason": "Spam", "closed_date": str(created + 60)},
+        "inconsistent": {"is_answered": "True", "answer_count": "0", "first_answer_date": str(created - 3600),
+                         "last_activity_date": str(created - 60), "link": "https://stackoverflow.com/questions/1/x"},
     }
     rows = []
-    for case, overrides in cases.items():
-        record_id = f"{template['season']}_{template['round'].zfill(2)}_test_{case}"
-        rows.append({**template, **overrides, "record_id": record_id, "is_test_record": True, "test_case": case})
+    for number, (case, overrides) in enumerate(cases.items(), start=1):
+        question_id = str(TEST_ID_BASE + number)
+        link = f"https://stackoverflow.com/questions/{question_id}/test-{case.replace('_', '-')}"
+        rows.append({**template, "question_id": question_id, "link": link, **overrides,
+                     "is_test_record": True, "test_case": case})
     return pd.DataFrame(rows)
 
 
@@ -143,7 +162,8 @@ def validate(df: pd.DataFrame) -> ValidationResult:
     if errors.empty:
         invalid_index = pd.Index([])
     else:
-        errors.insert(0, "record_id", df.loc[errors["index"], "record_id"].to_numpy())
+        errors.insert(0, "query_tag", df.loc[errors["index"], "query_tag"].to_numpy())
+        errors.insert(0, "question_id", df.loc[errors["index"], "question_id"].to_numpy())
         invalid_index = pd.Index(errors["index"].unique())
 
     invalid = df.loc[invalid_index].copy()
@@ -187,8 +207,9 @@ def run() -> dict:
              stats["input_records"], stats["real_records"], stats["test_records"], stats["valid"],
              stats["invalid"], stats["invalid_real"], stats["invalid_test"], stats["failed_checks"])
     if not result.invalid.empty:
-        for record_id, messages in result.invalid[["record_id", "validation_errors"]].itertuples(index=False):
-            log.info("  INVALID %-32s %s", record_id, messages)
+        for question_id, case, messages in result.invalid[["question_id", "test_case", "validation_errors"]].itertuples(
+                index=False):
+            log.info("  INVALID %s %-16s %s", question_id, case or "(real record)", messages)
     return stats
 
 

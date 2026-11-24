@@ -1,0 +1,7 @@
+tool,Accepted,"Answered, not accepted",Unanswered,Closed
+Airflow,34,71,57,5
+Kafka,70,157,119,17
+SQLite,118,104,66,18
+Selenium,183,257,124,24
+Web scraping,94,105,48,19
+pandas,447,386,100,122

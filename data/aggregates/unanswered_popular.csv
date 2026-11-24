@@ -1,0 +1,85 @@
+question_id,title,tools,view_count,score,creation_at
+79608770,Why does yt-dlp work locally but fail with a bot error in production (live environment) even with cookies?,Web scraping,1876,1,2025-05-06 13:04:03+00:00
+79678330,Getting blocked by cloudflare with curl_cffi,Web scraping,1370,1,2025-06-24 23:34:26+00:00
+79386629,Error configuring Kafka with KRaft mode using only the broker role,Kafka,1126,2,2025-01-25 11:33:15+00:00
+79404534,How to set up Crawl4AI with managed browser,Web scraping,1111,0,2025-02-01 06:32:18+00:00
+79611788,I'm trying to use the browser-cookie3 Python package to extract cookies from Chrome using the following code:,Selenium,995,0,2025-05-08 06:12:49+00:00
+79792653,How can I reliably scrape the Meta Ads Library for the latest ad launches?,Web scraping,911,2,2025-10-16 23:59:17+00:00
+79774163,Scraping Instagram Likes at Bulk,Web scraping,799,0,2025-09-24 20:44:10+00:00
+79323043,How to save data from kafka to iceberg table into desired namespace using tabular iceberg sink connector,Kafka,697,1,2025-01-02 07:31:20+00:00
+79415806,issue with spring.kafka.consumer.ssl.bundle properties not working for SpringBoot Kafka application,Kafka,673,0,2025-02-05 18:24:52+00:00
+79429587,Apache Kafka SASL/OAUTHBEARER with Keycloak – “An internal error occurred while retrieving token from callback handler”,Kafka,639,1,2025-02-11 10:15:15+00:00
+79709204,How can I add a Root CA certificate to Google Chrome’s local SSL store via script on Windows?,SQLite,635,1,2025-07-21 14:22:30+00:00
+79510582,GET request to an API endpoint comes back as 403 forbidden even with headers using httr package in R. (works in browser),Web scraping,612,1,2025-03-15 03:15:29+00:00
+79323308,Quarkus kafka consumers stop consuming when processing message for too long,Kafka,609,1,2025-01-02 09:34:07+00:00
+79697283,"Airflow 3.0.2 + Helm + Keycloak SSO: User role changes from ""Admin"" to ""Viewer"" after login",Airflow,603,1,2025-07-10 15:22:54+00:00
+79553881,kafka upgrade stuck on metadata loader catching up,Kafka,587,2,2025-04-03 19:52:18+00:00
+79728768,m3u8 HLS url VIdeo Not Playing with hls.js and Art Player,Web scraping,436,0,2025-08-07 14:56:15+00:00
+79458261,Nodriver web scraping program gets stuck at cdp.network.get_response_body?,Web scraping,433,0,2025-02-21 17:59:55+00:00
+79386784,Importing org.assertj.core.api.Assertions throws an error in Eclipse,Selenium,429,0,2025-01-25 13:18:25+00:00
+79781068,Unable to scrape product price from Shein ShareJump links in Laravel/Python,Web scraping,427,0,2025-10-02 15:23:39+00:00
+79851129,Spring-Boot Kafka Property-File Configuration,Kafka,411,1,2025-12-19 13:15:49+00:00
+79484458,Use Jinja template for table name inside SQLExecuteQueryOperator params or parameter,Airflow,406,0,2025-03-04 17:35:57+00:00
+79356528,Airflow DAG with multiple dynamic SQLExecuteQueryOperator tasks keeps breaking silently,Airflow,393,0,2025-01-14 22:13:12+00:00
+79358073,running engine: engine linux/qemu failed to run: running VM: running virtiofsd for /home: signal: bad system call (core dumped),Airflow,390,0,2025-01-15 11:37:12+00:00
+79746894,Illegal instruction (core dumped) when running Streamlit app on Raspberry Pi 4,pandas,374,1,2025-08-26 13:29:27+00:00
+79833386,"Suitable Pandas installation on 32-bit Python (3.10, 3.11)",pandas,356,0,2025-11-29 16:45:26+00:00
+79393229,Quarkus Kafka consumer with exponential backoff retry,Kafka,352,0,2025-01-28 09:01:21+00:00
+79613737,Dotnet unable to load shared library 'e_sqlite3' went targeting linux-x64,SQLite,352,1,2025-05-09 08:13:27+00:00
+79644298,"yfinance - can't download stock data in JupyterLab, but it works on Google Colab",pandas,345,1,2025-05-29 16:40:41+00:00
+79356109,Python selenium (firefox/geckodriver) not working in Docker Linux/Ubuntu container,Selenium,343,1,2025-01-14 19:01:34+00:00
+79778153,"Airflow 3.1. + CeleryExecutor in Docker Compose: DAGs stuck in `queued`, tasks never sent to workers",Airflow,334,2,2025-09-29 13:22:57+00:00
+79533463,UNKNOWN_TOPIC_OR_PARTITION handling in Spring Kafka Producer,Kafka,333,1,2025-03-25 11:08:46+00:00
+79440195,spring kafka how to avoid retrying the whole batch in case of exceptions?,Kafka,332,0,2025-02-14 17:51:19+00:00
+79703736,VBA Automation with Firefox (w Selenium and Geckodriver),Selenium,327,1,2025-07-16 16:30:48+00:00
+79595832,Kafka broker authentication failing after changing to SCRAM module,Kafka,327,1,2025-04-28 05:04:52+00:00
+79793379,"""UserWarning: No artists with labels found to put in legend"" Error when trying to create a legend with labels from dataset",pandas,326,0,2025-10-17 19:07:33+00:00
+79321741,How to intercept a captcha on request sent to an API (specifically TikTok Mobile Api),Web scraping,326,0,2025-01-01 14:17:17+00:00
+79431335,Memory Usage Continues to Increase When Repeatedly Reading Parquet files,pandas,311,5,2025-02-11 21:15:40+00:00
+79555028,"How to recover from a ""Broker: Not coordinator"" error when consuming from Kafka",Kafka,303,2,2025-04-04 10:08:30+00:00
+79780913,Tasks stuck in queued,Airflow,296,0,2025-10-02 12:23:32+00:00
+79756594,How do I capture missing nan values from Pandas 2.3.0 using Pydantic 2.11.7,pandas,296,2,2025-09-05 09:07:53+00:00
+79610298,Selenium request timeout with '--user-data-dir' argument,Selenium,291,1,2025-05-07 10:13:49+00:00
+79550295,How to write large Parquet files (20GB+) to SQLite in batches using Polars?,SQLite,283,0,2025-04-02 09:49:55+00:00
+79374588,airflow: retry the whole task group when a task retries in that group,Airflow,281,1,2025-01-21 13:24:57+00:00
+79397752,Dynamic Task Sequencing in Airflow via Dag Run Conf,Airflow,281,5,2025-01-29 18:09:34+00:00
+79751742,"MAUI: SQLite database ""removed"" after app closes in release mode",SQLite,280,2,2025-08-31 12:12:18+00:00
+79722617,pd.api.types.is_string_dtype() is misleading,pandas,279,1,2025-08-01 14:08:08+00:00
+79426259,"Selenium 4 (Node.js): How to Capture Network Requests? (getDevTools, createCDPConnection)",Selenium,269,1,2025-02-10 06:38:12+00:00
+79583784,yfinance returning empty dataframes,Web scraping,269,0,2025-04-20 21:54:07+00:00
+79682896,How can i request data standings data with /league-standings endpoint from fbrapi.com?,Web scraping,266,0,2025-06-28 10:01:17+00:00
+79328063,"When extracting Kobo bookmarks frm KoboReader.sqlite, how do I determine pages/locations",SQLite,266,0,2025-01-04 01:34:47+00:00
+79664927,Code to connect to an open chrome 138 page on a dynamic port using selenium without using remote debugging,Selenium,253,0,2025-06-13 13:28:20+00:00
+79360922,Google scraping return 200 status code but not results,Web scraping,252,1,2025-01-16 09:04:30+00:00
+79425506,How to setup spring boot app with playwright docker,Selenium,250,1,2025-02-09 18:54:29+00:00
+79440503,How to scrape searched youtube videos with puppeteer,Web scraping,249,0,2025-02-14 20:21:48+00:00
+79486158,Using Kafka Streams with MSK Express brokers - internal topic creation,Kafka,247,0,2025-03-05 10:28:12+00:00
+79647053,How to set up username/password in airflow3 local set up,Airflow,245,1,2025-05-31 23:08:08+00:00
+79847590,Spring Kafka consumer stops consuming after 1–2 days with ExpiringCredentialRefreshingLogin logs,Kafka,244,0,2025-12-15 10:44:37+00:00
+79505540,Debezium ad hoc snapshot not working because of no maximum key,Kafka,244,1,2025-03-13 06:07:58+00:00
+79822171,Camoufox browser window remains visible in WSL even when `headless` is set to `virtual`,Web scraping,244,0,2025-11-17 10:30:25+00:00
+79659719,How to add autocomplete suggestions to st.chat_input() in Streamlit (like Google Search)?,pandas,238,0,2025-06-10 02:40:44+00:00
+79414084,"Chrome driver: element is stale for version 128, but not found error for the new version 132?",Selenium,237,0,2025-02-05 08:27:19+00:00
+79499134,Appium Webdriver is not using latest DOM or dynamically loading elements,Selenium,232,0,2025-03-10 20:54:22+00:00
+79683897,"Flink FlatMap ""Could not forward element to next operator""",Kafka,229,2,2025-06-29 16:49:31+00:00
+79747926,Conversion of a pyspark DataFrame with a Variant column to pandas fails with an error,pandas,223,1,2025-08-27 11:32:49+00:00
+79766045,Airflow DAGs disappear from UI after fixing ImportError for BigQueryCreateEmptyTableOperator,Airflow,223,2,2025-09-16 09:30:06+00:00
+79459514,Bun + drizzle + sqlite = broken types for update/insert,SQLite,223,1,2025-02-22 11:08:49+00:00
+79615354,Issue in propagation of Trace context among Kafka clients,Kafka,222,2,2025-05-10 09:48:25+00:00
+79433699,Cloud Composer/Airflow Loggin — Line breaks as /n,Airflow,222,3,2025-02-12 15:58:41+00:00
+79701324,"Could not load file or assembly 'Microsoft.Data.Sqlite, Version=9.0.7.0'",SQLite,221,0,2025-07-14 20:16:16+00:00
+79732371,Column level alignment in pandas DataFrame printing,pandas,221,7,2025-08-11 18:26:30+00:00
+79557430,Using the free-proxy library with requests to access general https websites,Web scraping,221,0,2025-04-05 19:28:48+00:00
+79746466,"In Delphi 12, using FireDAC, is there a way I can set the field length of a string automatically",SQLite,218,0,2025-08-26 06:12:20+00:00
+79688390,In Airflow getting NotRegistered error on simple Celery task despite [celery] imports configuration,Airflow,216,2,2025-07-03 06:37:06+00:00
+79608038,Failed to start Kraft controller in K8s,Kafka,214,0,2025-05-06 05:42:26+00:00
+79787641,Error when trying to generate Allure reports,Selenium,212,0,2025-10-10 19:27:26+00:00
+79587475,Replicate successful PowerShell SAML request code into Python,Selenium,212,0,2025-04-22 21:33:47+00:00
+79776565,How can I calculate XIRR from irregular cash flows in Python and validate results against Excel’s XIRR function?,pandas,211,0,2025-09-27 06:44:10+00:00
+79534631,How can I suppress the output of a PRAGMA statement in sqlite?,SQLite,210,1,2025-03-25 19:04:40+00:00
+79614394,I'm stuck in implementing a VFS for sqlite in python with the module apsw,SQLite,209,1,2025-05-09 14:59:34+00:00
+79398735,"http redirect to https when automated, but not when manual",Selenium,208,0,2025-01-30 03:52:09+00:00
+79383240,Pandas works in terminal of VSCode but fails in code window of VSCode,pandas,207,0,2025-01-24 04:39:56+00:00
+79794345,pywebview: error maximum recursion depth exceeded before pressing button when passing pandas/model objects in js_api,pandas,206,0,2025-10-19 15:14:26+00:00
+79709014,Correct design for SQL table in SQLite3: how to optimize substring search?,SQLite,206,0,2025-07-21 11:49:00+00:00
+79440392,How to accurately implement typing with pandas?,pandas,201,2,2025-02-14 19:22:44+00:00

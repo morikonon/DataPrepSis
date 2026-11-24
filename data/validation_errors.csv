@@ -1,17 +1,20 @@
-record_id,column,check,failure_case
-2023_01_test_wrong_types,race_date,coerce_dtype('datetime64[ns]'),2024-02-30
-2023_01_test_wrong_types,grid,coerce_dtype('int64'),P1
-2023_01_test_wrong_types,points,coerce_dtype('float64'),twenty-five
-2023_01_test_missing_required,driver_code,not_nullable,
-2023_01_test_missing_required,constructor_name,not_nullable,
-2023_01_test_missing_required,status,not_nullable,
-2023_01_test_bad_category_and_date,(row),race_date_in_season,rule violated
-2023_01_test_out_of_range,(row),position_text_matches_position,rule violated
-2023_01_test_conflicting_position,(row),one_driver_per_position,rule violated
-2023_01_test_out_of_range,(row),points_only_for_top_10,rule violated
-2023_01_test_out_of_range,grid,"in_range(0, 26)",40
-2023_01_test_bad_category_and_date,driver_code,str_matches('^[A-Z]{3}$'),verstappen
-2023_01_test_bad_category_and_date,race_date,"in_range(1950-05-13 00:00:00, 2026-11-21 00:00:00)",2031-07-06 00:00:00
-2023_01_test_out_of_range,position,"in_range(1, 26)",35
-2023_01_test_out_of_range,laps,"in_range(0, 100)",-5
-2023_01_test_bad_category_and_date,season,"isin([2023, 2024, 2025])",1949
+question_id,query_tag,column,check,failure_case
+900000001,web-scraping,score,coerce_dtype('int64'),high
+900000001,web-scraping,view_count,coerce_dtype('int64'),1.2k
+900000001,web-scraping,creation_date,coerce_dtype('int64'),2025-13-01
+900000002,web-scraping,title,not_nullable,
+900000002,web-scraping,tags,not_nullable,
+900000002,web-scraping,owner_user_type,not_nullable,
+900000005,web-scraping,(row),activity_after_creation,rule violated
+900000005,web-scraping,(row),answer_fields_consistent,rule violated
+900000005,web-scraping,(row),answers_after_question,rule violated
+900000003,web-scraping,(row),answer_fields_consistent,rule violated
+900000005,web-scraping,(row),link_matches_question_id,rule violated
+900000004,excel,(row),query_tag_in_tags,rule violated
+900000003,web-scraping,answer_count,"in_range(0, 100)",-1
+900000003,web-scraping,creation_date,"in_range(1735689600, 1767225599)",1577836800
+900000004,excel,is_answered,"isin(['True', 'False'])",yes
+900000003,web-scraping,title,"str_length(15, 300)",help
+900000004,excel,closed_reason,"isin(['Duplicate', 'Needs details or clarity', 'Needs more focus', 'Not suitable for this site', 'Opinion-based'])",Spam
+900000004,excel,owner_user_type,"isin(['registered', 'unregistered', 'does_not_exist'])",moderator
+900000004,excel,query_tag,"isin(['pandas', 'apache-kafka', 'airflow', 'sqlite', 'selenium-webdriver', 'web-scraping'])",excel

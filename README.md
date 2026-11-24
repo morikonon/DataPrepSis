@@ -1,15 +1,16 @@
-# F1 Race Results: Streaming and Validation Pipeline (Kafka + Pandera)
+# Stack Overflow Questions about Data-Engineering Tools: Streaming and Validation Pipeline (Kafka + Pandera)
 
 SIS 2, Data Collection & Preparation, KBTU.
 Authors: Mukhamedali Daniyaruly, Alikhan Tursynkhan.
 
-The pipeline collects Formula 1 race results for the 2023–2025 seasons from a public REST API, streams every record
-through Apache Kafka, validates the received data with Pandera, cleans and transforms it with pandas and NumPy,
-stores it in SQLite and runs an exploratory analysis with Matplotlib/Seaborn.
+The pipeline collects every Stack Overflow question asked in 2025 about six data-engineering tools (pandas, Apache
+Kafka, Airflow, SQLite, Selenium, web scraping) from the public Stack Exchange API, streams the records through
+Apache Kafka, validates them with Pandera, cleans and transforms them with pandas and NumPy, stores them in SQLite and
+analyses how often and how fast such questions get answered.
 
 ```
-Jolpica F1 API ──> api_client.py ──> data/raw_data.csv ──> producer.py ──> Kafka topic "f1-race-results"
-                                                                                │ (3 partitions, JSON)
+Stack Exchange API ──> api_client.py ──> data/raw_data.csv ──> producer.py ──> Kafka topic "so-questions"
+                                                                                 │ (3 partitions, JSON)
      figures/ <── analysis.py <── data/output.db <── loader.py <── cleaner.py <── validator.py <── consumer.py
 ```
 
@@ -22,13 +23,13 @@ Jolpica F1 API ──> api_client.py ──> data/raw_data.csv ──> producer.
 | Apache Kafka (Docker image `apache/kafka`) | 3.9.1, KRaft mode, single broker |
 | Python packages | see `requirements.txt` (pandas, numpy, requests, confluent-kafka, pandera, matplotlib, seaborn) |
 
-Internet access is needed for the API call. No API key or account is required.
+Internet access is needed for the API. No account or key is required.
 
 ## 2. Installation
 
 ```bash
-git clone <repository-url>
-cd <repository-folder>
+git clone https://github.com/morikonon/DataPrepSis.git
+cd DataPrepSis
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -46,7 +47,7 @@ docker compose ps
 ```
 
 `STATUS` must show `healthy`. The broker runs in KRaft mode (no ZooKeeper); its settings are in `docker-compose.yml`.
-Automatic topic creation is disabled on purpose, so the topic always has a known configuration.
+Automatic topic creation is disabled, so the topic always has a known configuration.
 
 Stop it with `docker compose down` (this also deletes all messages).
 
@@ -54,36 +55,49 @@ Stop it with `docker compose down` (this also deletes all messages).
 
 | Setting | Value |
 |---|---|
-| Name | `f1-race-results` |
+| Name | `so-questions` |
 | Partitions | 3 |
 | Replication factor | 1 (single broker) |
 | `retention.ms` | 604800000 (7 days) |
-| Message key | `record_id` (all copies of one result go to the same partition) |
-| Message value | one result serialised as UTF-8 JSON |
+| Message key | `question_id` (all copies of one question go to the same partition) |
+| Message value | one record serialised as UTF-8 JSON |
 
-The producer creates the topic automatically if it does not exist. To create or inspect it manually:
+The producer creates the topic if it does not exist. To create or inspect it manually:
 
 ```bash
 python -m src.kafka_admin create
 python -m src.kafka_admin describe
-docker exec f1-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic f1-race-results
-docker exec f1-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group f1-pipeline-consumer
+docker exec so-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic so-questions
+docker exec so-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group so-pipeline-consumer
 ```
 
-## 5. Configuration
+## 5. API configuration
 
-Defaults are in `src/config.py`. Every value below can be overridden with an environment variable; nothing secret is
-needed.
+API documentation: <https://api.stackexchange.com/docs>. Two endpoints are used:
+
+| Endpoint | Parameters | Returns |
+|---|---|---|
+| `GET https://api.stackexchange.com/2.3/questions` | `site=stackoverflow`, `tagged=<tag>`, `fromdate`, `todate` (Unix seconds), `sort=creation`, `order=asc`, `pagesize=100`, `page=N` | questions of one tag in the date window, 100 per page, `has_more` tells whether another page exists |
+| `GET https://api.stackexchange.com/2.3/questions/{ids}/answers` | up to 100 question ids joined with `;`, same paging | answers of those questions (used for the first-answer and accepted-answer dates) |
+
+Without a key the API allows **300 requests per day per IP address**; one full collection uses about 75. If the quota
+runs out, register a free key at <https://stackapps.com/apps/oauth/register> and export it (it raises the quota to
+10,000; never commit it):
+
+```bash
+export STACKEXCHANGE_KEY=your_key
+```
+
+All settings are in `src/config.py` and can be overridden with environment variables:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `F1_API_BASE_URL` | `https://api.jolpi.ca/ergast/f1` | API base URL |
-| `F1_SEASONS` | `2023,2024,2025` | Seasons to collect |
+| `STACKEXCHANGE_KEY` | not set | optional API key |
+| `SO_TAGS` | `pandas,apache-kafka,airflow,sqlite,selenium-webdriver,web-scraping` | tags to collect |
+| `SO_FROM_DATE` / `SO_TO_DATE` | `2025-01-01` / `2025-12-31` | creation-date window (inclusive, UTC) |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka broker address |
-| `KAFKA_TOPIC` | `f1-race-results` | Topic name |
-| `KAFKA_GROUP_ID` | `f1-pipeline-consumer` | Consumer group |
-
-API endpoint: `GET {F1_API_BASE_URL}/{season}/results/?limit=100&offset={n}` (100 results per page, paged by offset).
+| `KAFKA_TOPIC` | `so-questions` | topic name |
+| `KAFKA_GROUP_ID` | `so-pipeline-consumer` | consumer group |
 
 ## 6. Running the pipeline
 
@@ -93,15 +107,15 @@ API endpoint: `GET {F1_API_BASE_URL}/{season}/results/?limit=100&offset={n}` (10
 python main.py
 ```
 
-`main.py` runs the seven stages in order and prints a summary of record counts. Use `python main.py --skip-collect`
-to reuse `data/raw_data.csv` instead of calling the API again.
+`main.py` runs the seven stages in order and prints a summary of record counts. `python main.py --skip-collect`
+reuses `data/raw_data.csv` instead of calling the API again (saves the API quota).
 
 ### Option B: stage by stage (same order)
 
 ```bash
 python -m src.api_client
 python -m src.producer
-python -m src.consumer --expected 1398
+python -m src.consumer --expected 2745
 python -m src.validator
 python -m src.cleaner
 python -m src.loader
@@ -122,7 +136,7 @@ The consumer stops when it has read `--expected` messages or when no message arr
 `--expected` it reads everything new for its consumer group and stops on the idle timeout. It commits offsets after the
 batch, so running it again only reads messages published after that.
 
-The producer and consumer can also run at the same time in two terminals (the topic must exist, so create it first):
+The producer and consumer can also run at the same time in two terminals (create the topic first):
 
 ```bash
 python -m src.kafka_admin create
@@ -137,48 +151,64 @@ python -m src.producer
 
 ## 7. Database
 
-The loader creates `data/output.db` from `sql/schema.sql` (tables `races`, `drivers`, `constructors`, `results`
-and view `v_results`) and loads the cleaned data **twice** to show that a repeated load adds or changes nothing
+The loader creates `data/output.db` from `sql/schema.sql` (tables `questions` and `question_tags`, view
+`v_question_tools`) and loads the cleaned data **twice** to show that a repeated load adds or changes nothing
 (`INSERT ... ON CONFLICT DO UPDATE ... WHERE` a value differs).
 
 ```bash
 python -m src.loader --verify-only
-sqlite3 data/output.db "SELECT COUNT(*) FROM results;"
-sqlite3 data/output.db "SELECT season, COUNT(*) FROM v_results GROUP BY season;"
+sqlite3 data/output.db "SELECT COUNT(*) FROM questions;"
+sqlite3 data/output.db "SELECT tool, COUNT(*) FROM v_question_tools GROUP BY tool;"
 ```
 
-## 8. Expected output
+## 8. Analysis and figures
 
-A run against a fresh broker ends with:
+`python -m src.analysis` reads the database, logs descriptive statistics and grouped results, writes
+`data/eda_summary.json` and five figures to `figures/`:
+
+| Figure | Question |
+|---|---|
+| `fig1_questions_per_month.png` | how the number of new questions changed during 2025 |
+| `fig2_outcome_by_tool.png` | which share of each tool's questions is accepted, answered, unanswered or closed |
+| `fig3_time_to_first_answer.png` | how long the first answer takes per tool |
+| `fig4_reputation_effect.png` | whether the asker's reputation changes the chance of an (accepted) answer |
+| `fig5_posting_heatmap.png` | on which weekdays and hours questions are posted |
+
+## 9. Expected output
+
+The run of 24.11.2026 against a fresh broker ended with:
 
 ```
 PIPELINE SUMMARY
-  Collected from API        1398
-  Published to Kafka        1398
-  Consumed from Kafka       1398
-  Validation input          1403
-  Valid records             1398
+  Collected from API        2745
+  Published to Kafka        2745
+  Consumed from Kafka       2745
+  Validation input          2750
+  Valid records             2745
   Invalid records              5
-  Records after cleaning    1398
-  Stored in SQLite          1398
+  Records after cleaning    2649
+  Stored in SQLite          2649
   Idempotent load: True
 ```
 
-The 5 invalid records are deliberately invalid test records (`*_test_*` ids) added by the validator to prove that
-the schema catches errors; they are quarantined and never stored. Six figures are written to `figures/`.
+2745 records are 2649 questions: 96 questions carry two or three tracked tags and are returned by more than one query;
+the cleaner merges them. The 5 invalid records are deliberately invalid test records (ids `900000001`–`900000005`)
+added by the validator to prove that the schema catches errors; they are quarantined and never stored. Counts can
+change slightly in a later run, because questions get deleted, edited and answered on the live site.
 
-## 9. Checking that it worked
+## 10. Checking that it worked
 
 1. `docker compose ps` shows the broker as `healthy`.
-2. The producer log shows `Published 1398/1398 messages` and the consumer log `Consumed 1398 messages`.
+2. The producer log shows `Published 2745/2745 messages` and the consumer log `Consumed 2745 messages`.
 3. `data/invalid_records.csv` contains exactly the 5 test records with their errors.
-4. The loader log shows `Load #2: results inserted=0 updated=0` and the same fingerprint for both loads.
-5. `python -m src.loader --verify-only` reports 1398 results and no rows for the duplicate, orphan and winner checks.
-6. `figures/` contains `fig1` … `fig6`.
+4. The loader log shows `Load #2 questions inserted=0 updated=0` and the same fingerprint for both loads.
+5. `python -m src.loader --verify-only` reports 2649 questions and no rows for the `questions_without_tool`,
+   `tag_count_mismatch` and `inconsistent_answers` checks.
+6. `figures/` contains `fig1` … `fig5`.
 
 All runs are also appended to `logs/pipeline.log`.
 
-## 10. Project structure
+## 11. Project structure
 
 ```
 ├── main.py                 runs all stages in order
@@ -201,4 +231,3 @@ All runs are also appended to `logs/pipeline.log`.
 ├── logs/pipeline.log
 └── report/project_report.pdf
 ```
-# DataPrepSis

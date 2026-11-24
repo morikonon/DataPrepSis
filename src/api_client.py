@@ -1,6 +1,5 @@
-"""Collects Formula 1 race results from the Jolpica F1 API and preserves the raw data."""
+"""Collects Stack Overflow questions and the dates of their answers from the Stack Exchange API; keeps the raw data."""
 
-import argparse
 import json
 import logging
 import sys
@@ -15,6 +14,8 @@ from src import config
 log = logging.getLogger("api_client")
 
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+NULLABLE_INT_FIELDS = ["accepted_answer_id", "last_edit_date", "closed_date", "owner_user_id", "owner_reputation",
+                       "owner_accept_rate", "first_answer_date", "accepted_answer_date"]
 
 
 class ApiError(RuntimeError):
@@ -22,22 +23,32 @@ class ApiError(RuntimeError):
 
 
 def parse_payload(response: requests.Response) -> dict:
-    """Decode the JSON body and check the MRData -> RaceTable -> Races structure."""
+    """Decode the JSON body and check the common wrapper: {"items": [...], "has_more": ..., "quota_remaining": ...}."""
     try:
         payload = response.json()
-        races = payload["MRData"]["RaceTable"]["Races"]
-        int(payload["MRData"]["total"])
+        items, has_more = payload["items"], payload["has_more"]
     except (ValueError, KeyError, TypeError) as exc:
         raise ApiError(f"Unexpected response format from {response.url}: {exc!r}") from exc
-    if not isinstance(races, list):
-        raise ApiError(f"'Races' is not a list in the response from {response.url}")
+    if not isinstance(items, list) or not isinstance(has_more, bool):
+        raise ApiError(f"'items' is not a list in the response from {response.url}")
     return payload
 
 
-def fetch_page(session: requests.Session, season: int, offset: int) -> dict:
-    """GET one page of /{season}/results/, retrying network errors, 429 and 5xx with exponential backoff."""
-    url = f"{config.API_BASE_URL}/{season}/results/"
-    params = {"limit": config.API_PAGE_LIMIT, "offset": offset}
+def error_text(response: requests.Response) -> str:
+    """The API reports errors as {"error_id", "error_name", "error_message"}; fall back to the HTTP status."""
+    try:
+        body = response.json()
+        return f"HTTP {response.status_code} {body['error_name']}: {body['error_message']}"
+    except (ValueError, KeyError, TypeError):
+        return f"HTTP {response.status_code}"
+
+
+def fetch_page(session: requests.Session, path: str, params: dict) -> dict:
+    """GET one page, retrying network errors, throttling and 5xx with exponential backoff."""
+    url = f"{config.API_BASE_URL}/{path}"
+    params = {"site": config.API_SITE, "pagesize": config.API_PAGE_SIZE, "filter": "default", **params}
+    if config.API_KEY:
+        params["key"] = config.API_KEY
 
     for attempt in range(1, config.API_MAX_RETRIES + 1):
         try:
@@ -46,114 +57,136 @@ def fetch_page(session: requests.Session, season: int, offset: int) -> dict:
             problem = f"network error: {exc}"
         else:
             if response.status_code == 200:
-                return parse_payload(response)
-            if response.status_code not in RETRYABLE_STATUS_CODES:
-                raise ApiError(f"{response.url} returned HTTP {response.status_code} (not retryable)")
-            problem = f"HTTP {response.status_code}"
+                payload = parse_payload(response)
+                if "backoff" in payload:  # the API asks clients to pause before calling the same method again
+                    log.warning("API requested a backoff of %ss", payload["backoff"])
+                    time.sleep(payload["backoff"])
+                return payload
+            problem = error_text(response)
+            if response.status_code not in RETRYABLE_STATUS_CODES and "throttle" not in problem:
+                raise ApiError(f"/{path} failed with {problem} (not retryable)")
 
         wait_s = 2**attempt
-        log.warning("Season %s offset %s: %s (attempt %d/%d), retrying in %ds",
-                    season, offset, problem, attempt, config.API_MAX_RETRIES, wait_s)
+        log.warning("/%s page %s: %s (attempt %d/%d), retrying in %ds",
+                    path, params.get("page"), problem, attempt, config.API_MAX_RETRIES, wait_s)
         time.sleep(wait_s)
 
-    raise ApiError(f"Season {season} offset {offset}: no successful response after {config.API_MAX_RETRIES} attempts")
+    raise ApiError(f"/{path} page {params.get('page')}: no successful response after {config.API_MAX_RETRIES} attempts")
 
 
-def fetch_season(session: requests.Session, season: int) -> list[dict]:
-    """Download every results page of a season (the API pages by result rows, max 100 per page)."""
-    pages, offset, total = [], 0, None
-    while total is None or offset < total:
-        payload = fetch_page(session, season, offset)
-        total = int(payload["MRData"]["total"])
+def fetch_all_pages(session: requests.Session, path: str, params: dict) -> list[dict]:
+    """Follow `has_more` page by page up to the configured page limit."""
+    pages = []
+    for page in range(1, config.API_MAX_PAGES_PER_TAG + 1):
+        payload = fetch_page(session, path, {**params, "page": page})
         pages.append(payload)
-        offset += config.API_PAGE_LIMIT
         time.sleep(config.API_REQUEST_DELAY_S)
-    log.info("Season %d: %d results in %d pages", season, total, len(pages))
+        if not payload["has_more"]:
+            break
+    else:
+        log.warning("/%s: stopped at the limit of %d pages, more data is available", path, config.API_MAX_PAGES_PER_TAG)
     return pages
 
 
-def flatten_page(payload: dict, collected_at: str) -> list[dict]:
-    """Turn the nested Race -> Results JSON into one flat record per driver per race; values stay as delivered."""
-    records = []
-    for race in payload["MRData"]["RaceTable"]["Races"]:
-        circuit = race["Circuit"]
-        for result in race["Results"]:
-            driver = result["Driver"]
-            constructor = result["Constructor"]
-            fastest_lap = result.get("FastestLap", {})
-            records.append({
-                "record_id": f"{race['season']}_{race['round'].zfill(2)}_{driver['driverId']}",
-                "season": race["season"],
-                "round": race["round"],
-                "race_name": race["raceName"],
-                "race_date": race["date"],
-                "race_start_time": race.get("time"),
-                "circuit_id": circuit["circuitId"],
-                "circuit_name": circuit["circuitName"],
-                "country": circuit["Location"]["country"],
-                "locality": circuit["Location"]["locality"],
-                "driver_id": driver["driverId"],
-                "driver_code": driver.get("code"),
-                "driver_number": driver.get("permanentNumber"),
-                "given_name": driver.get("givenName"),
-                "family_name": driver.get("familyName"),
-                "driver_dob": driver.get("dateOfBirth"),
-                "driver_nationality": driver.get("nationality"),
-                "constructor_id": constructor.get("constructorId"),
-                "constructor_name": constructor.get("name"),
-                "constructor_nationality": constructor.get("nationality"),
-                "grid": result.get("grid"),
-                "position": result.get("position"),
-                "position_text": result.get("positionText"),
-                "points": result.get("points"),
-                "laps": result.get("laps"),
-                "status": result.get("status"),
-                "race_time_ms": result.get("Time", {}).get("millis"),
-                "fastest_lap_rank": fastest_lap.get("rank"),
-                "fastest_lap_number": fastest_lap.get("lap"),
-                "fastest_lap_time": fastest_lap.get("Time", {}).get("time"),
-                "collected_at": collected_at,
-            })
-    return records
+def fetch_questions(session: requests.Session, tag: str) -> list[dict]:
+    """All questions with `tag` created inside the collection window, oldest first."""
+    from_ts, to_ts = config.unix_range()
+    pages = fetch_all_pages(session, "questions", {
+        "tagged": tag, "fromdate": from_ts, "todate": to_ts, "sort": "creation", "order": "asc"})
+    log.info("Tag %-18s %4d questions in %d page(s), quota left: %s",
+             tag, sum(len(page["items"]) for page in pages), len(pages), pages[-1].get("quota_remaining"))
+    return pages
 
 
-def collect(seasons: list[int]) -> pd.DataFrame:
-    """Collect all seasons, save the untouched API responses (JSON) and the flattened records (CSV)."""
+def fetch_answers(session: requests.Session, question_ids: list[int]) -> list[dict]:
+    """Answers of the given questions; the endpoint accepts up to 100 ids per request."""
+    pages = []
+    for start in range(0, len(question_ids), config.API_PAGE_SIZE):
+        batch = ";".join(str(question_id) for question_id in question_ids[start:start + config.API_PAGE_SIZE])
+        pages.extend(fetch_all_pages(session, f"questions/{batch}/answers", {"sort": "creation", "order": "asc"}))
+    log.info("Answers: %d for %d answered questions in %d page(s), quota left: %s",
+             sum(len(page["items"]) for page in pages), len(question_ids), len(pages),
+             pages[-1].get("quota_remaining") if pages else "n/a")
+    return pages
+
+
+def summarize_answers(answer_pages: list[dict]) -> dict[int, dict]:
+    """question_id -> creation date of its first answer and of its accepted answer (Unix seconds)."""
+    summary: dict[int, dict] = {}
+    for page in answer_pages:
+        for answer in page["items"]:
+            entry = summary.setdefault(answer["question_id"], {"first": answer["creation_date"], "accepted": None})
+            entry["first"] = min(entry["first"], answer["creation_date"])
+            if answer.get("is_accepted"):
+                entry["accepted"] = answer["creation_date"]
+    return summary
+
+
+def flatten_question(item: dict, query_tag: str, answers: dict, collected_at: str) -> dict:
+    """One flat record per question and query tag; values stay as delivered (dates are Unix seconds)."""
+    owner = item.get("owner", {})
+    return {
+        "question_id": item["question_id"],
+        "query_tag": query_tag,
+        "title": item.get("title"),
+        "tags": ";".join(item.get("tags", [])),
+        "link": item.get("link"),
+        "score": item.get("score"),
+        "view_count": item.get("view_count"),
+        "answer_count": item.get("answer_count"),
+        "is_answered": item.get("is_answered"),
+        "accepted_answer_id": item.get("accepted_answer_id"),
+        "creation_date": item.get("creation_date"),
+        "last_activity_date": item.get("last_activity_date"),
+        "last_edit_date": item.get("last_edit_date"),
+        "closed_date": item.get("closed_date"),
+        "closed_reason": item.get("closed_reason"),
+        "content_license": item.get("content_license"),
+        "owner_user_id": owner.get("user_id"),
+        "owner_user_type": owner.get("user_type"),
+        "owner_reputation": owner.get("reputation"),
+        "owner_accept_rate": owner.get("accept_rate"),
+        "first_answer_date": answers.get("first"),
+        "accepted_answer_date": answers.get("accepted"),
+        "collected_at": collected_at,
+    }
+
+
+def collect() -> pd.DataFrame:
+    """Collect every tag, save the untouched API responses (JSON) and the flattened records (CSV)."""
     collected_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    raw_pages, records = [], []
+    log.info("Collecting questions tagged %s created %s .. %s", config.TAGS, config.FROM_DATE, config.TO_DATE)
 
     with requests.Session() as session:
-        session.headers["User-Agent"] = "kbtu-dcp-sis2-f1-pipeline/1.0"
-        for season in seasons:
-            for payload in fetch_season(session, season):
-                raw_pages.append(payload)
-                records.extend(flatten_page(payload, collected_at))
+        session.headers["User-Agent"] = "kbtu-dcp-sis2-pipeline/1.0"
+        question_pages = {tag: fetch_questions(session, tag) for tag in config.TAGS}
+        answered_ids = sorted({item["question_id"] for pages in question_pages.values() for page in pages
+                               for item in page["items"] if item.get("answer_count", 0) > 0})
+        answer_pages = fetch_answers(session, answered_ids)
 
+    answers = summarize_answers(answer_pages)
+    records = [flatten_question(item, tag, answers.get(item["question_id"], {}), collected_at)
+               for tag, pages in question_pages.items() for page in pages for item in page["items"]]
     if not records:
-        raise ApiError(f"The API returned no results for seasons {seasons}")
+        raise ApiError(f"The API returned no questions for tags {config.TAGS}")
 
     config.DATA_DIR.mkdir(exist_ok=True)
     with open(config.RAW_JSON_PATH, "w", encoding="utf-8") as file:
-        json.dump({"collected_at": collected_at, "seasons": seasons, "pages": raw_pages}, file, ensure_ascii=False)
+        json.dump({"collected_at": collected_at, "site": config.API_SITE, "tags": config.TAGS,
+                   "from_date": str(config.FROM_DATE), "to_date": str(config.TO_DATE),
+                   "question_pages": question_pages, "answer_pages": answer_pages}, file, ensure_ascii=False)
 
-    raw_df = pd.DataFrame(records)
+    raw_df = pd.DataFrame(records).astype({field: "Int64" for field in NULLABLE_INT_FIELDS})
     raw_df.to_csv(config.RAW_CSV_PATH, index=False)
-    log.info("Collected %d records (%d columns) from %d API pages -> %s",
-             len(raw_df), raw_df.shape[1], len(raw_pages), config.RAW_CSV_PATH.name)
+    log.info("Collected %d records (%d unique questions, %d columns) -> %s",
+             len(raw_df), raw_df["question_id"].nunique(), raw_df.shape[1], config.RAW_CSV_PATH.name)
     return raw_df
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seasons", type=int, nargs="+", default=config.SEASONS)
-    args = parser.parse_args()
+if __name__ == "__main__":
     config.setup_logging()
     try:
-        collect(args.seasons)
+        collect()
     except ApiError as exc:
         log.error("Collection failed: %s", exc)
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

@@ -1,7 +1,7 @@
 services:
   kafka:
     image: apache/kafka:3.9.1
-    container_name: f1-kafka
+    container_name: so-kafka
     ports:
       - "9092:9092"
     environment:

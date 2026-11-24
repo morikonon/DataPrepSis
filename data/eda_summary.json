@@ -1,15 +1,72 @@
 {
-  "spearman_grid_vs_finish": 0.74,
-  "wins_from_pole_pct": 58.6,
-  "wins_from_front_row_pct": 78.6,
-  "wins_from_outside_top5_pct": 5.7,
-  "overall_dnf_rate_pct": 11.4,
-  "spearman_team_pace_vs_points": -0.867,
-  "title_margin_race_points": {
-    "2023": 270.0,
-    "2024": 55.0,
-    "2025": 5.0
+  "questions": 2649,
+  "answered_pct": 80.0,
+  "accepted_pct": 37.7,
+  "closed_pct": 7.4,
+  "median_hours_to_first_answer": 2.52,
+  "answered_within_1h_pct_of_answered": 34.9,
+  "q1_to_q4_change_pct": -74.0,
+  "weekend_share_pct": 17.6,
+  "median_hours_weekday": 2.33,
+  "median_hours_weekend": 3.39,
+  "spearman_views_vs_score": 0.175,
+  "closed_reasons": {
+    "Duplicate": 106,
+    "Not suitable for this site": 52,
+    "Needs details or clarity": 18,
+    "Needs more focus": 14,
+    "Opinion-based": 5
   },
-  "rows": 1398,
-  "columns": 26
+  "tools": {
+    "pandas": {
+      "questions": 1055,
+      "answered_pct": 88.4,
+      "accepted_pct": 47.9,
+      "answered_24h_pct": 78.9,
+      "median_hours": 0.9,
+      "median_views": 117.0
+    },
+    "Selenium": {
+      "questions": 588,
+      "answered_pct": 78.6,
+      "accepted_pct": 33.0,
+      "answered_24h_pct": 57.8,
+      "median_hours": 5.6,
+      "median_views": 113.5
+    },
+    "Kafka": {
+      "questions": 363,
+      "answered_pct": 66.9,
+      "accepted_pct": 20.9,
+      "answered_24h_pct": 37.7,
+      "median_hours": 17.6,
+      "median_views": 136.0
+    },
+    "SQLite": {
+      "questions": 306,
+      "answered_pct": 78.1,
+      "accepted_pct": 41.2,
+      "answered_24h_pct": 65.0,
+      "median_hours": 2.4,
+      "median_views": 126.0
+    },
+    "Web scraping": {
+      "questions": 266,
+      "answered_pct": 82.0,
+      "accepted_pct": 39.1,
+      "answered_24h_pct": 66.2,
+      "median_hours": 3.8,
+      "median_views": 141.0
+    },
+    "Airflow": {
+      "questions": 167,
+      "answered_pct": 65.9,
+      "accepted_pct": 22.8,
+      "answered_24h_pct": 29.9,
+      "median_hours": 30.3,
+      "median_views": 163.0
+    }
+  },
+  "rows": 2649,
+  "columns": 36
 }
